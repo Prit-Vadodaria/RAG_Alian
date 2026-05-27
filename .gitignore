@@ -1,0 +1,99 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.hypothesis/
+.tox/
+.nox/
+pip-wheel-metadata/
+.venv/
+venv/
+env/
+
+# Frontend
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+.vite/
+.parcel-cache/
+
+# AI Models
+# Model caches are ignored because they are large, reproducible, and should be
+# downloaded or rebuilt locally instead of being committed to GitHub.
+.cache/
+.hf_cache/
+huggingface/
+HF_HOME/
+model_cache/
+sentence_transformers/
+transformers_cache/
+transformers/
+
+# Environment
+# .env files are ignored so API keys, tokens, and local secrets never reach GitHub.
+.env
+.env.*
+!.env.example
+*.key
+secrets/
+
+# Logs
+logs/
+data/logs/
+*.log
+*.log.*
+
+# Vector DB
+# Vector DB runtime files are ignored because they are machine-local indexes/state
+# that can be regenerated from source data and embeddings.
+vectordb/chroma/*
+vectordb/chroma/**/*
+data/indexes/chroma/*
+data/indexes/chroma/**/*
+chroma/
+chroma_db/
+*.sqlite
+*.sqlite3
+*.sqlite3-journal
+*.db
+*.db-journal
+!vectordb/chroma/.gitkeep
+!data/indexes/chroma/.gitkeep
+!chroma/.gitkeep
+!chroma_db/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Deployment / Runtime
+tmp/
+temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+docker-volumes/
+volumes/
+data/raw/html/
+data/raw/*.html
+data/raw/crawl_manifest.json
+data/raw/sitemap_urls.txt
+data/chunks/
+data/cleaned_markdown/
+data/structured_docs/

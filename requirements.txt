@@ -1,0 +1,13 @@
+beautifulsoup4
+playwright
+lxml
+markdownify
+sentence-transformers
+huggingface_hub
+chromadb
+numpy
+tiktoken
+requests
+python-dotenv
+trafilatura
+selectolax
