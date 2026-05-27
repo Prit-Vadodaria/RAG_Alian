@@ -37,6 +37,15 @@ class GoogleConfig:
     max_retries: int = GOOGLE_MAX_RETRIES
     retry_backoff: float = GOOGLE_RETRY_BACKOFF
 
+@dataclass(frozen=True)
+class GoogleGenerationResult:
+    """Structured Gemini generation response."""
+
+    text: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+
 
 class GoogleClient:
     """HTTP client for Gemini's generateContent endpoint."""
@@ -44,7 +53,7 @@ class GoogleClient:
     def __init__(self, config: GoogleConfig | None = None) -> None:
         self.config = config or GoogleConfig()
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str) -> GoogleGenerationResult:
         """Generate text from Gemini and return the final response text."""
         if not prompt.strip():
             raise ValueError("Prompt must be non-empty.")
@@ -99,9 +108,33 @@ class GoogleClient:
             raise RuntimeError("Google Gemini request failed unexpectedly.")
 
         text = _extract_text(data)
+
+        usage = data.get("usageMetadata", {})
+
+        input_tokens = int(
+            usage.get("promptTokenCount", 0)
+        )
+
+        output_tokens = int(
+            usage.get("candidatesTokenCount", 0)
+        )
+
+        total_tokens = int(
+            usage.get("totalTokenCount", 0)
+        )
+
         if not text:
-            logger.warning("Google Gemini returned an empty response for model=%s", self.config.model)
-        return text
+            logger.warning(
+                "Google Gemini returned an empty response for model=%s",
+                self.config.model,
+            )
+
+        return GoogleGenerationResult(
+            text=text,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+        )
 
 
 def _extract_text(data: dict) -> str:

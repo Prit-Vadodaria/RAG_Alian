@@ -121,7 +121,9 @@ class RagPipeline:
 
         generation_start = time.perf_counter()
 
-        answer = self.generation_backend.generate(prompt).strip()
+        generation_result = self.generation_backend.generate(prompt)
+
+        answer = generation_result.text.strip()
 
         generation_latency_ms = (
             time.perf_counter() - generation_start
@@ -154,10 +156,10 @@ class RagPipeline:
         ) * 1000
 
         # Approximate token counts
-        input_tokens = int(len(prompt) / 4)
-        output_tokens = int(len(answer) / 4)
-        total_tokens = input_tokens + output_tokens
-
+        input_tokens = generation_result.input_tokens
+        output_tokens = generation_result.output_tokens
+        total_tokens = generation_result.total_tokens
+        
         throughput_tokens_per_second = (
             output_tokens /
             max(generation_latency_ms / 1000.0, 0.001)
