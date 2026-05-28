@@ -11,3 +11,6 @@ requests
 python-dotenv
 trafilatura
 selectolax
+fastapi 
+uvicorn 
+python-multipart
