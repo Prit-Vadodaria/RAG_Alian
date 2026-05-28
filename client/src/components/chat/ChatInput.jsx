@@ -15,7 +15,7 @@ function ChatInput({ onSubmit, disabled }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-3xl border border-zinc-800 bg-zinc-950 p-4 shadow-sm shadow-cyan-500/5"
+      className="rounded-3xl border border-zinc-800 bg-zinc-950 p-5 shadow-sm shadow-cyan-500/5 space-y-4"
     >
       <label
         htmlFor="assistant-prompt"
@@ -28,11 +28,11 @@ function ChatInput({ onSubmit, disabled }) {
         value={message}
         onChange={(event) => setMessage(event.target.value)}
         rows={4}
-        className="w-full resize-none rounded-3xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/10"
+        className="w-full resize-none rounded-3xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-l text-zinc-100 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/10"
         placeholder="Type a question and press enter to send..."
         disabled={disabled}
       />
-      <div className="mt-4 flex items-center justify-between gap-3">
+      <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-zinc-500">
           The backend handles retrieval, grounding, and citation scoring.
         </p>

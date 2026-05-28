@@ -12,7 +12,7 @@ import SourceDrawer from "../components/source/SourceDrawer";
 import ConfidenceBar from "../components/metrics/ConfidenceBar";
 import RetrievalStats from "../components/metrics/RetrievalStats";
 import LatencyBadge from "../components/metrics/LatencyBadge";
-import { createChatTitle, formatDuration } from "../utils/format";
+import { createChatTitle /*, formatDuration*/ } from "../utils/format";
 
 const thinkingMessages = [
   "Searching knowledge base...",
@@ -145,14 +145,14 @@ function Chat() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-6">
+    <div className="flex h-full flex-col gap-8">
       <ChatHeader
         title={activeChat.title}
         messageCount={activeChat.messages.length}
       />
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         <ChatWindow>
-          <div className="flex flex-1 flex-col gap-4 overflow-y-auto pr-2">
+          <div className="flex  flex-1 flex-col gap-5 overflow-y-auto">
             {activeChat.messages.length === 0 ? (
               <EmptyState />
             ) : (
@@ -168,8 +168,8 @@ function Chat() {
           </div>
           <ChatInput onSubmit={handleSend} disabled={isThinking} />
         </ChatWindow>
-        <aside className="space-y-6 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-sm shadow-cyan-500/5">
-          <div className="space-y-3">
+        <aside className="space-y-6 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-sm shadow-cyan-500/5">
+          <div className="space-y-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold uppercase tracking-[0.28em] text-zinc-400">
                 Latest metrics
@@ -181,7 +181,7 @@ function Chat() {
             <LatencyBadge value={lastAssistantMessage?.latency?.total ?? 0} />
             <RetrievalStats latency={lastAssistantMessage?.latency ?? {}} />
           </div>
-          <div className="space-y-4 rounded-3xl border border-zinc-800 bg-zinc-950 p-4">
+          <div className="space-y-4 rounded-3xl border border-zinc-800 bg-zinc-950 p-5">
             <h3 className="text-sm font-semibold uppercase tracking-[0.28em] text-zinc-400">
               Confidence
             </h3>

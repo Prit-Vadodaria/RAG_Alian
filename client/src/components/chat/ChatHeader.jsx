@@ -2,7 +2,7 @@ import { MessageSquare } from "lucide-react";
 
 function ChatHeader({ title, messageCount }) {
   return (
-    <div className="mb-5 flex items-center justify-between gap-4 rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-4 shadow-sm shadow-cyan-500/5">
+    <div className="flex items-center justify-between gap-4 rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-4 shadow-sm shadow-cyan-500/5">
       <div>
         <p className="text-xs uppercase tracking-[0.32em] text-zinc-500">
           Workspace conversation

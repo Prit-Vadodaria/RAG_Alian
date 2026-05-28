@@ -13,15 +13,7 @@ function MessageBubble({ message, onSelectSource }) {
           : "border-zinc-800 bg-zinc-950 text-zinc-200 self-end"
       }`}
     >
-      <div className="mb-3 flex items-center gap-3 text-sm font-semibold text-zinc-300">
-        <span
-          className={`inline-flex h-8 w-8 items-center justify-center rounded-2xl ${isAssistant ? "bg-cyan-500/10 text-cyan-300" : "bg-zinc-800 text-zinc-200"}`}
-        >
-          {isAssistant ? "AI" : "You"}
-        </span>
-        <span>{isAssistant ? "Assistant response" : "User prompt"}</span>
-      </div>
-      <div className="markdown-body max-w-none space-y-4 text-sm leading-7 text-zinc-100">
+      <div className="max-w-none space-y-4 text-l leading-7 text-zinc-100">
         <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
           {message.content}
         </ReactMarkdown>
