@@ -9,4 +9,4 @@ router = APIRouter()
 
 @router.post("/ask", response_model=AskResponseSchema)
 async def ask_route(request: AskRequestSchema) -> AskResponseSchema:
-    return ask_query(request.query)
+    return ask_query(request.query, context_id=request.context_id)

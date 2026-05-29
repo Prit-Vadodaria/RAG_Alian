@@ -88,10 +88,18 @@ def process_raw_html_directory(
     input_dir: Path | None = None,
     limit: int | None = None,
     workers: int = 1,
+    output_base_dir: Path | None = None,
 ) -> ProcessingSummary:
     """Process raw HTML files into markdown, document JSON, and chunk JSON."""
     ensure_directories()
-    logger = get_logger("html_processor", LOGS_DIR / "html_processing.log")
+    # choose target dirs: if output_base_dir is provided, write outputs there
+    cleaned_dir = CLEANED_MARKDOWN_DIR if output_base_dir is None else (output_base_dir / "cleaned_markdown")
+    structured_dir = STRUCTURED_DOCS_DIR if output_base_dir is None else (output_base_dir / "structured_docs")
+    chunks_dir = CHUNKS_DIR if output_base_dir is None else (output_base_dir / "chunks")
+    logs_dir = LOGS_DIR if output_base_dir is None else (output_base_dir / "logs")
+
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    logger = get_logger("html_processor", logs_dir / "html_processing.log")
     files = discover_raw_html_files(input_dir)
     selected_files = files[:limit] if limit is not None else files
 
@@ -130,7 +138,7 @@ def process_raw_html_directory(
 
             seen_hashes.add(document.document_hash)
             seen_fingerprints.append(fingerprint)
-            _export_document(document)
+            _export_document(document, cleaned_dir=cleaned_dir, structured_dir=structured_dir)
 
             unique_chunks = []
             for chunk in result.chunks:
@@ -140,10 +148,9 @@ def process_raw_html_directory(
                 seen_chunk_hashes.add(chunk_hash)
                 unique_chunks.append(chunk)
 
-            _export_chunks(document.document_id, unique_chunks)
+            _export_chunks(document.document_id, unique_chunks, chunks_dir=chunks_dir)
             exported_chunks += len(unique_chunks)
             processed_documents += 1
-
         return ProcessingSummary(
             discovered_files=len(selected_files),
             processed_documents=processed_documents,
@@ -151,10 +158,10 @@ def process_raw_html_directory(
             empty_pages=empty_pages,
             failed_pages=failed_pages,
             exported_chunks=exported_chunks,
-            cleaned_markdown_dir=str(CLEANED_MARKDOWN_DIR),
-            structured_docs_dir=str(STRUCTURED_DOCS_DIR),
-            chunks_dir=str(CHUNKS_DIR),
-            logs_dir=str(LOGS_DIR),
+            cleaned_markdown_dir=str(cleaned_dir),
+            structured_docs_dir=str(structured_dir),
+            chunks_dir=str(chunks_dir),
+            logs_dir=str(logs_dir),
         )
     finally:
         close_logger(logger)
@@ -212,12 +219,12 @@ def _process_files(files: list[Path], workers: int) -> list[ProcessedDocument]:
     return sorted(results, key=lambda result: result.source_path)
 
 
-def _export_document(document: StructuredDocument) -> None:
-    CLEANED_MARKDOWN_DIR.mkdir(parents=True, exist_ok=True)
-    STRUCTURED_DOCS_DIR.mkdir(parents=True, exist_ok=True)
+def _export_document(document: StructuredDocument, *, cleaned_dir: Path, structured_dir: Path) -> None:
+    cleaned_dir.mkdir(parents=True, exist_ok=True)
+    structured_dir.mkdir(parents=True, exist_ok=True)
 
-    markdown_path = CLEANED_MARKDOWN_DIR / f"{document.document_id}.md"
-    doc_path = STRUCTURED_DOCS_DIR / f"{document.document_id}.json"
+    markdown_path = cleaned_dir / f"{document.document_id}.md"
+    doc_path = structured_dir / f"{document.document_id}.json"
 
     markdown_path.write_text(document.markdown, encoding="utf-8")
     doc_path.write_text(
@@ -226,8 +233,8 @@ def _export_document(document: StructuredDocument) -> None:
     )
 
 
-def _export_chunks(document_id: str, chunks: list[dict[str, object]]) -> None:
-    CHUNKS_DIR.mkdir(parents=True, exist_ok=True)
-    chunk_path = CHUNKS_DIR / f"{document_id}.chunks.json"
+def _export_chunks(document_id: str, chunks: list[dict[str, object]], *, chunks_dir: Path) -> None:
+    chunks_dir.mkdir(parents=True, exist_ok=True)
+    chunk_path = chunks_dir / f"{document_id}.chunks.json"
     chunk_path.write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
 

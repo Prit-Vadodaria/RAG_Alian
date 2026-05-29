@@ -46,7 +46,7 @@ class RetrievalPipeline:
         self.last_reranker_status = "unknown"
         self.last_reranker_backend = "unknown"
 
-    def retrieve(self, query: str) -> tuple[list[SearchResult], list[RerankedResult]]:
+    def retrieve(self, query: str, context_id: str = "alian_default") -> tuple[list[SearchResult], list[RerankedResult]]:
         """Run query embedding, vector retrieval, reranking, and final truncation."""
         if not query.strip():
             raise ValueError("Query must be non-empty.")
@@ -59,7 +59,7 @@ class RetrievalPipeline:
             ENABLE_RERANKER,
             getattr(self.reranker, "backend", "unknown"),
         )
-        vector_results = self.retriever.retrieve(query)
+        vector_results = self.retriever.retrieve(query, context_id=context_id)
         logger.info("Retrieved %s vector documents (top_k=%s)", len(vector_results), self.vector_top_k)
         for idx, result in enumerate(vector_results, start=1):
             logger.debug(

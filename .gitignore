@@ -48,6 +48,7 @@ env/
 .venv
 env.bak/
 venv.bak/
+websites/
 
 # ============================================
 # Node.js

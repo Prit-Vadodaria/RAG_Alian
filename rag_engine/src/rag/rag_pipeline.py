@@ -84,7 +84,7 @@ class RagPipeline:
         )
         self.generation_backend = generation_backend or GoogleGenerationBackend()
 
-    def run(self, query: str) -> RagResult:
+    def run(self, query: str, context_id: str = "alian_default") -> RagResult:
         """Execute end-to-end local RAG for one query."""
 
         pipeline_start = time.perf_counter()
@@ -93,7 +93,7 @@ class RagPipeline:
 
         retrieval_start = time.perf_counter()
 
-        vector_results, reranked = self.retrieval_pipeline.retrieve(query)
+        vector_results, reranked = self.retrieval_pipeline.retrieve(query, context_id=context_id)
 
         retrieval_latency_ms = (
             time.perf_counter() - retrieval_start

@@ -1,8 +1,11 @@
 const apiClient = require("./api.service");
 
-const askRag = async (query) => {
+const askRag = async (query, contextId = "alian_default") => {
   try {
-    const response = await apiClient.post("/ask", { query });
+    const response = await apiClient.post("/ask", {
+      query,
+      context_id: contextId,
+    });
 
     if (!response || !response.data) {
       const error = new Error("Invalid response from FastAPI RAG service.");

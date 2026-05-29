@@ -3,7 +3,7 @@ const { askRag } = require("../services/rag.service");
 
 const chatController = async (req, res, next) => {
   try {
-    const { query } = req.body;
+    const { query, context_id } = req.body;
 
     if (typeof query !== "string" || !query.trim()) {
       return res
@@ -13,7 +13,11 @@ const chatController = async (req, res, next) => {
         );
     }
 
-    const response = await askRag(query.trim());
+    const ctx =
+      typeof context_id === "string" && context_id.trim()
+        ? context_id.trim()
+        : "alian_default";
+    const response = await askRag(query.trim(), ctx);
 
     return res.json(successResponse(response));
   } catch (error) {

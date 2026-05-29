@@ -14,3 +14,4 @@ selectolax
 fastapi 
 uvicorn 
 python-multipart
+psutil

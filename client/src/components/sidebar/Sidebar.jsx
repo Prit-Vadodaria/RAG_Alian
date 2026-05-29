@@ -4,14 +4,29 @@ import { MessageSquare, Cpu, SlidersHorizontal } from "lucide-react";
 import NewChatButton from "./NewChatButton";
 import ChatList from "./ChatList";
 import { useChatStore } from "../../store/chatStore";
+import ContextSelector from "../context/ContextSelector";
+import AddContextModal from "../context/AddContextModal";
+import { useState } from "react";
 
 function Sidebar() {
   const createChat = useChatStore((state) => state.createChat);
+  const [showModal, setShowModal] = useState(false);
 
   return (
     <aside className="hidden w-80 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950 p-4 md:flex">
       <div className="space-y-4">
-        <NewChatButton onCreate={createChat} />
+        <div className="flex items-center gap-2">
+          <NewChatButton onCreate={createChat} className="flex-1" />
+          <button
+            onClick={() => setShowModal(true)}
+            className="rounded-2xl border border-cyan-500 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/15"
+          >
+            + Add Website
+          </button>
+        </div>
+        <div>
+          <ContextSelector />
+        </div>
         <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm shadow-cyan-500/10">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.32em] text-zinc-400">
             Conversations
@@ -19,6 +34,13 @@ function Sidebar() {
           <ChatList />
         </div>
       </div>
+      {showModal && (
+        <AddContextModal
+          onClose={() => {
+            setShowModal(false);
+          }}
+        />
+      )}
       <div className="mt-auto space-y-3">
         <nav className="space-y-3 rounded-3xl border border-zinc-800 bg-zinc-900 p-4">
           <NavLink
