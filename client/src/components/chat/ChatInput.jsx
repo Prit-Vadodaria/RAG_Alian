@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Send } from "lucide-react";
 
 function ChatInput({ onSubmit, disabled }) {
   const [message, setMessage] = useState("");
+  const textareaRef = useRef(null);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -10,41 +11,42 @@ function ChatInput({ onSubmit, disabled }) {
     if (!trimmed) return;
     onSubmit(trimmed);
     setMessage("");
+    textareaRef.current?.focus();
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleSubmit(event);
+    }
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-3xl border border-zinc-800 bg-zinc-950 p-5 shadow-sm shadow-cyan-500/5 space-y-4"
-    >
-      <label
-        htmlFor="assistant-prompt"
-        className="mb-2 block text-sm uppercase tracking-[0.3em] text-zinc-500"
-      >
-        Ask the workspace
-      </label>
-      <textarea
-        id="assistant-prompt"
-        value={message}
-        onChange={(event) => setMessage(event.target.value)}
-        rows={4}
-        className="w-full resize-none rounded-3xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-l text-zinc-100 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/10"
-        placeholder="Type a question and press enter to send..."
-        disabled={disabled}
-      />
-      <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-zinc-500">
-          The backend handles retrieval, grounding, and citation scoring.
-        </p>
+    <form onSubmit={handleSubmit} className="flex h-fit flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <textarea
+          id="assistant-prompt"
+          ref={textareaRef}
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          onKeyDown={handleKeyDown}
+          rows={3}
+          className="flex-1 resize-none rounded-2xl border border-zinc-800 bg-[#0b0c11] px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+          placeholder="Type your message..."
+          disabled={disabled}
+        />
         <button
           type="submit"
           disabled={disabled}
-          className="inline-flex items-center gap-2 rounded-2xl bg-cyan-500 px-5 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-cyan-500 text-slate-950 shadow-sm transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Send message"
         >
-          Send
-          <Send className="h-4 w-4" />
+          <Send className="h-5 w-5" />
         </button>
       </div>
+      <p className="text-xs text-zinc-500">
+        Enter to send • Shift + Enter for newline
+      </p>
     </form>
   );
 }

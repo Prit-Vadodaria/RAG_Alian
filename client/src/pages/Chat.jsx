@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useChatStore } from "../store/chatStore";
 import { askRag } from "../services/rag";
@@ -12,7 +12,7 @@ import SourceDrawer from "../components/source/SourceDrawer";
 import ConfidenceBar from "../components/metrics/ConfidenceBar";
 import RetrievalStats from "../components/metrics/RetrievalStats";
 import LatencyBadge from "../components/metrics/LatencyBadge";
-import { createChatTitle /*, formatDuration*/ } from "../utils/format";
+import { createChatTitle } from "../utils/format";
 import { useContextStore } from "../store/contextStore";
 
 const thinkingMessages = [
@@ -45,12 +45,14 @@ function Chat() {
   const chats = useChatStore((state) => state.chats);
   const activeChatId = useChatStore((state) => state.activeChatId);
   const setActiveChat = useChatStore((state) => state.setActiveChat);
+  const createChat = useChatStore((state) => state.createChat);
   const addMessage = useChatStore((state) => state.addMessage);
   const updateChatTitle = useChatStore((state) => state.updateChatTitle);
 
   const [isThinking, setIsThinking] = useState(false);
   const [thinkingMessage, setThinkingMessage] = useState(thinkingMessages[0]);
   const [selectedSource, setSelectedSource] = useState(null);
+  const chatScrollRef = useRef(null);
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) || chats[0];
 
@@ -67,6 +69,12 @@ function Chat() {
         .find((message) => message.role === "assistant"),
     [activeChat],
   );
+
+  useEffect(() => {
+    const scrollElement = chatScrollRef.current;
+    if (!scrollElement) return;
+    scrollElement.scrollTop = scrollElement.scrollHeight;
+  }, [activeChat?.messages?.length, isThinking]);
 
   const handleSend = async (prompt) => {
     if (!activeChat) return;
@@ -87,7 +95,8 @@ function Chat() {
     }, 1000);
 
     try {
-      const selectedContext = useContextStore.getState().selectedContext || "alian_default";
+      const selectedContext =
+        useContextStore.getState().selectedContext || "alian_default";
       const response = await askRag(prompt, selectedContext);
       const assistantMessage = createMessage({
         role: "assistant",
@@ -143,65 +152,79 @@ function Chat() {
   };
 
   if (!activeChat) {
-    return <EmptyState />;
+    return <EmptyState onNewChat={createChat} onSelectPrompt={handleSend} />;
   }
 
   return (
-    <div className="flex h-full flex-col gap-8">
+    <div className="flex h-full min-h-0 flex-col gap-4">
       <ChatHeader
         title={activeChat.title}
         messageCount={activeChat.messages.length}
       />
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid h-full min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px]">
         <ChatWindow>
-          <div className="flex  flex-1 flex-col gap-5 overflow-y-auto">
-            {activeChat.messages.length === 0 ? (
-              <EmptyState />
-            ) : (
-              activeChat.messages.map((message) => (
-                <MessageBubble
-                  key={message.id}
-                  message={message}
-                  onSelectSource={setSelectedSource}
+          <div className="flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden px-2 py-3 sm:px-0 sm:py-0">
+            <div
+              ref={chatScrollRef}
+              className="flex-1 overflow-y-auto space-y-3 p-3"
+            >
+              {activeChat.messages.length === 0 ? (
+                <EmptyState
+                  onNewChat={createChat}
+                  onSelectPrompt={handleSend}
                 />
-              ))
-            )}
-            {isThinking && <ThinkingBubble message={thinkingMessage} />}
+              ) : (
+                activeChat.messages.map((message) => (
+                  <MessageBubble
+                    key={message.id}
+                    message={message}
+                    onSelectSource={setSelectedSource}
+                  />
+                ))
+              )}
+              {isThinking && <ThinkingBubble message={thinkingMessage} />}
+            </div>
           </div>
-          <ChatInput onSubmit={handleSend} disabled={isThinking} />
+          <div className="border-t border-zinc-800 bg-[#0b0c11] p-3 sm:p-4">
+            <ChatInput onSubmit={handleSend} disabled={isThinking} />
+          </div>
         </ChatWindow>
-        <aside className="space-y-6 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-sm shadow-cyan-500/5">
-          <div className="space-y-4">
+        <aside className="space-y-4 overflow-y-auto pr-1">
+          <div className="rounded-[1.75rem] border border-zinc-800 bg-[#111317] p-4 shadow-[0_32px_80px_rgba(15,23,42,0.18)]">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.28em] text-zinc-400">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-400">
                 Latest metrics
               </h2>
               <span className="text-xs uppercase tracking-[0.28em] text-zinc-500">
                 Live
               </span>
             </div>
-            <LatencyBadge value={lastAssistantMessage?.latency?.total ?? 0} />
-            <RetrievalStats latency={lastAssistantMessage?.latency ?? {}} />
+            <div className="mt-3 space-y-3">
+              <LatencyBadge value={lastAssistantMessage?.latency?.total ?? 0} />
+              <RetrievalStats latency={lastAssistantMessage?.latency ?? {}} />
+            </div>
           </div>
-          <div className="space-y-4 rounded-3xl border border-zinc-800 bg-zinc-950 p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.28em] text-zinc-400">
-              Confidence
+          <div className="rounded-[1.75rem] border border-zinc-800 bg-[#111317] p-4 shadow-[0_32px_80px_rgba(15,23,42,0.18)]">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-400">
+              Confidence overview
             </h3>
-            <ConfidenceBar
-              label="Retrieval"
-              value={lastAssistantMessage?.confidence?.retrieval ?? 0}
-              colorClass="bg-cyan-500"
-            />
-            <ConfidenceBar
-              label="Grounding"
-              value={lastAssistantMessage?.confidence?.grounding ?? 0}
-              colorClass="bg-sky-500"
-            />
-            <ConfidenceBar
-              label="Rerank"
-              value={lastAssistantMessage?.confidence?.rerank ?? 0}
-              colorClass="bg-cyan-400"
-            />
+            <div className="mt-3 space-y-3">
+              <ConfidenceBar
+                label="Retrieval"
+                value={lastAssistantMessage?.confidence?.retrieval ?? 0}
+                colorClass="bg-cyan-500"
+              />
+              <ConfidenceBar
+                label="Grounding"
+                value={lastAssistantMessage?.confidence?.grounding ?? 0}
+                colorClass="bg-sky-500"
+              />
+              <ConfidenceBar
+                label="Rerank"
+                value={lastAssistantMessage?.confidence?.rerank ?? 0}
+                colorClass="bg-cyan-400"
+              />
+            </div>
           </div>
         </aside>
       </div>

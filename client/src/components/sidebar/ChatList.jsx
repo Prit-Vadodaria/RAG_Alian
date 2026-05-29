@@ -4,7 +4,8 @@ import ConversationItem from "./ConversationItem";
 import { useChatStore } from "../../store/chatStore";
 import { formatDateLabel } from "../../utils/format";
 
-function ChatList() {
+function ChatList({ collapsed }) {
+  if (collapsed) return null;
   const chats = useChatStore((state) => state.chats);
   const activeChatId = useChatStore((state) => state.activeChatId);
   const setActiveChat = useChatStore((state) => state.setActiveChat);

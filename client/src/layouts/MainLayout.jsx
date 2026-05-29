@@ -1,20 +1,30 @@
 import { Outlet } from "react-router-dom";
+//import { Menu, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState } from "react";
 
-//import Navbar from "../components/navbar/Navbar";
 import Sidebar from "../components/sidebar/Sidebar";
-import ContextSelector from "../components/context/ContextSelector";
 
 function MainLayout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="flex h-[calc(100vh)] overflow-hidden border-t border-zinc-800">
-        <Sidebar />
-        <main className="flex-1 overflow-hidden bg-zinc-950 p-4 md:p-6">
-          <div className="flex items-center justify-end mb-4">
-            {/* Context selector moved to sidebar */}
-          </div>
-          <Outlet />
-        </main>
+    <div className="h-screen bg-[#0a0a0a] text-slate-100">
+      <div className="relative flex h-screen overflow-hidden">
+        <Sidebar
+          isOpen={sidebarOpen}
+          collapsed={sidebarCollapsed}
+          onClose={() => setSidebarOpen(false)}
+          onToggleCollapse={() => setSidebarCollapsed((value) => !value)}
+        />
+
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <main className="flex-1 overflow-hidden px-4 py-5 sm:px-6">
+            <div className="mx-auto flex h-full w-full max-w-[1280px] flex-col overflow-hidden">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
