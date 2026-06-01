@@ -5,17 +5,17 @@ import {
   savePromptSettings,
 } from "../services/rag";
 
-const fallback = {
+export const DEFAULT_PROMPT_SETTINGS = {
   role: "You are a retrieval-augmented QA assistant.",
   constraints: [
     "Do not invent facts.",
     "Cite supporting sources using [S1], [S2], etc.",
-    "If the answer is not present, respond exactly:\n\"I don't know based on the provided context.\"",
+    'If the answer is not present, respond exactly:\n"I don\'t know based on the provided context."',
   ],
 };
 
-export const usePromptSettingsStore = create((set, get) => ({
-  settings: fallback,
+export const usePromptSettingsStore = create((set) => ({
+  settings: DEFAULT_PROMPT_SETTINGS,
   isLoading: false,
   error: null,
   loadSettings: async () => {

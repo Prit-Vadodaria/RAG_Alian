@@ -13,9 +13,13 @@ import SourceDrawer from "../components/source/SourceDrawer";
 import ConfidenceBar from "../components/metrics/ConfidenceBar";
 import RetrievalStats from "../components/metrics/RetrievalStats";
 import LatencyBadge from "../components/metrics/LatencyBadge";
+import PromptSettingsModal from "../components/ui/PromptSettingsModal";
 import { createChatTitle } from "../utils/format";
 import { useContextStore } from "../store/contextStore";
-import { usePromptSettingsStore } from "../store/promptSettingsStore";
+import {
+  DEFAULT_PROMPT_SETTINGS,
+  usePromptSettingsStore,
+} from "../store/promptSettingsStore";
 
 const thinkingMessages = [
   "Searching knowledge base...",
@@ -55,9 +59,18 @@ function Chat() {
   const [isThinking, setIsThinking] = useState(false);
   const [thinkingMessage, setThinkingMessage] = useState(thinkingMessages[0]);
   const [selectedSource, setSelectedSource] = useState(null);
+  const [isPromptSettingsOpen, setIsPromptSettingsOpen] = useState(false);
+  const [isPromptSettingsSaving, setIsPromptSettingsSaving] = useState(false);
   const chatScrollRef = useRef(null);
 
+  const { settings, saveSettings, loadSettings } = usePromptSettingsStore();
+  const showToast = useContextStore((state) => state.showToast);
+
   const activeChat = chats.find((chat) => chat.id === activeChatId) || chats[0];
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   useEffect(() => {
     if (!activeChat && chats.length) {
@@ -177,6 +190,40 @@ function Chat() {
     navigate("/");
   };
 
+  const handleOpenPromptSettings = () => {
+    setIsPromptSettingsOpen(true);
+  };
+
+  const handleClosePromptSettings = () => {
+    setIsPromptSettingsOpen(false);
+  };
+
+  const handleSavePromptSettings = async ({ role, constraints }) => {
+    setIsPromptSettingsSaving(true);
+    try {
+      await saveSettings({ role, constraints });
+      showToast("Prompt settings saved.", "success");
+      setIsPromptSettingsOpen(false);
+    } catch (error) {
+      showToast(`Failed to save prompt settings: ${error.message}`, "error");
+    } finally {
+      setIsPromptSettingsSaving(false);
+    }
+  };
+
+  const handleResetPromptSettings = async (defaultSettings) => {
+    setIsPromptSettingsSaving(true);
+    try {
+      await saveSettings(defaultSettings);
+      showToast("Prompt settings reset to defaults.", "success");
+      setIsPromptSettingsOpen(false);
+    } catch (error) {
+      showToast(`Failed to reset prompt settings: ${error.message}`, "error");
+    } finally {
+      setIsPromptSettingsSaving(false);
+    }
+  };
+
   if (!activeChat) {
     return <EmptyState onNewChat={handleNewChat} onSelectPrompt={handleSend} />;
   }
@@ -257,16 +304,37 @@ function Chat() {
               />
             </div>
           </div>
+          <button
+            type="button"
+            onClick={handleOpenPromptSettings}
+            className="group w-full rounded-[1.75rem] border border-zinc-800 bg-[#111317] p-4 text-left shadow-[0_32px_80px_rgba(15,23,42,0.18)] transition hover:border-cyan-400"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-400 group-hover:text-cyan-300">
+                Prompt settings
+              </h3>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-zinc-400">
+              Update the role and constraints used by prompt configuration.
+            </p>
+          </button>
         </aside>
       </div>
       <SourceDrawer
         source={selectedSource}
         onClose={() => setSelectedSource(null)}
       />
+      <PromptSettingsModal
+        open={isPromptSettingsOpen}
+        settings={settings}
+        defaults={DEFAULT_PROMPT_SETTINGS}
+        onClose={handleClosePromptSettings}
+        onSave={handleSavePromptSettings}
+        onReset={handleResetPromptSettings}
+        saving={isPromptSettingsSaving}
+      />
     </div>
   );
 }
 
 export default Chat;
-
-
