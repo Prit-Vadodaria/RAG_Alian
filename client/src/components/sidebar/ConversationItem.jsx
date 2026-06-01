@@ -12,7 +12,7 @@ function ConversationItem({ chat, active, onSelect, onDelete }) {
     >
       <button
         type="button"
-        className="text-left"
+        className="flex-1 min-w-0 text-left"
         onClick={() => onSelect(chat.id)}
       >
         <p className="text-sm font-semibold truncate">{chat.title}</p>
@@ -23,7 +23,7 @@ function ConversationItem({ chat, active, onSelect, onDelete }) {
       <button
         type="button"
         onClick={() => onDelete(chat.id)}
-        className="rounded-full p-2 text-zinc-500 transition hover:bg-zinc-900 hover:text-rose-400"
+        className="shrink-0 rounded-full p-2 text-zinc-500 transition hover:bg-zinc-900 hover:text-rose-400"
       >
         <Trash2 className="h-4 w-4" />
       </button>

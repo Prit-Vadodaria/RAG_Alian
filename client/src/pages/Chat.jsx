@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { useChatStore } from "../store/chatStore";
 import { askRag } from "../services/rag";
@@ -42,6 +43,7 @@ const createMessage = ({
 });
 
 function Chat() {
+  const navigate = useNavigate();
   const chats = useChatStore((state) => state.chats);
   const activeChatId = useChatStore((state) => state.activeChatId);
   const setActiveChat = useChatStore((state) => state.setActiveChat);
@@ -112,7 +114,10 @@ function Chat() {
             similarity: source.similarity ?? source.similarity_score ?? null,
           })) ?? [],
         confidence: {
-          overall: response.confidence ?? response.confidence?.overall ?? 0,
+          overall:
+            response.confidence?.overall ??
+            response.confidence_breakdown?.overall ??
+            0,
           retrieval:
             response.confidence?.retrieval ??
             response.confidence_breakdown?.retrieval ??
@@ -132,9 +137,23 @@ function Chat() {
             response.metrics?.retrieval_latency_ms ??
             response.latency?.retrieval ??
             0,
+          rerank:
+            response.metrics?.rerank_latency_ms ??
+            response.latency?.rerank ??
+            0,
           generation:
             response.metrics?.generation_latency_ms ??
             response.latency?.generation ??
+            0,
+          inputTokens:
+            response.metrics?.input_tokens ?? response.tokens?.input ?? 0,
+          outputTokens:
+            response.metrics?.output_tokens ?? response.tokens?.output ?? 0,
+          totalTokens:
+            response.metrics?.total_tokens ?? response.tokens?.total ?? 0,
+          throughput:
+            response.metrics?.throughput_tokens_per_second ??
+            response.tokens?.throughput ??
             0,
         },
       });
@@ -151,8 +170,13 @@ function Chat() {
     }
   };
 
+  const handleNewChat = () => {
+    createChat();
+    navigate("/");
+  };
+
   if (!activeChat) {
-    return <EmptyState onNewChat={createChat} onSelectPrompt={handleSend} />;
+    return <EmptyState onNewChat={handleNewChat} onSelectPrompt={handleSend} />;
   }
 
   return (
@@ -170,7 +194,7 @@ function Chat() {
             >
               {activeChat.messages.length === 0 ? (
                 <EmptyState
-                  onNewChat={createChat}
+                  onNewChat={handleNewChat}
                   onSelectPrompt={handleSend}
                 />
               ) : (
@@ -189,7 +213,7 @@ function Chat() {
             <ChatInput onSubmit={handleSend} disabled={isThinking} />
           </div>
         </ChatWindow>
-        <aside className="space-y-4 overflow-y-auto pr-1">
+        <aside className="space-y-4 overflow-hidden pr-1">
           <div className="rounded-[1.75rem] border border-zinc-800 bg-[#111317] p-4 shadow-[0_32px_80px_rgba(15,23,42,0.18)]">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-400">
@@ -209,6 +233,11 @@ function Chat() {
               Confidence overview
             </h3>
             <div className="mt-3 space-y-3">
+              <ConfidenceBar
+                label="Overall"
+                value={lastAssistantMessage?.confidence?.overall ?? 0}
+                colorClass="bg-cyan-400"
+              />
               <ConfidenceBar
                 label="Retrieval"
                 value={lastAssistantMessage?.confidence?.retrieval ?? 0}

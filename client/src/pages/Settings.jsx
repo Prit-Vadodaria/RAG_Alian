@@ -1,9 +1,19 @@
+import { useEffect } from "react";
 import { Cog, Palette, SlidersHorizontal, Moon, Sparkles } from "lucide-react";
 import SectionCard from "../components/ui/SectionCard";
+import ContextManager from "../components/context/ContextManager";
 
 function Settings() {
+  useEffect(() => {
+    if (window.location.hash === "#knowledge-contexts") {
+      document
+        .getElementById("knowledge-contexts")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
   return (
-    <div className="space-y-6">
+    <div className="h-full min-h-0 overflow-y-auto pr-1 space-y-6">
       <div className="rounded-[2rem] border border-zinc-800 bg-[#111317] p-6 shadow-[0_40px_80px_rgba(15,23,42,0.18)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -23,6 +33,12 @@ function Settings() {
             Workspace settings
           </div>
         </div>
+      </div>
+
+      <div id="knowledge-contexts" className="scroll-mt-6">
+        <SectionCard title="Knowledge contexts">
+          <ContextManager />
+        </SectionCard>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">

@@ -24,7 +24,7 @@ function System() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="h-full min-h-0 overflow-hidden space-y-6">
       <div className="rounded-[2rem] border border-zinc-800 bg-[#111317] p-6 shadow-[0_40px_80px_rgba(15,23,42,0.18)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>

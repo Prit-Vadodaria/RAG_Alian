@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { useState } from "react";
 
 import Sidebar from "../components/sidebar/Sidebar";
+import ToastContainer from "../components/ui/ToastContainer";
 
 function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -25,6 +26,7 @@ function MainLayout() {
             </div>
           </main>
         </div>
+        <ToastContainer />
       </div>
     </div>
   );

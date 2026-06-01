@@ -8,6 +8,7 @@ from pydantic import BaseModel
 class ConfidenceSchema(BaseModel):
     retrieval: float
     grounding: float
+    rerank: float
     overall: float
 
 
@@ -18,6 +19,19 @@ class SourceSchema(BaseModel):
     section: str
     chunk_id: str
     rerank_score: float
+    text: str
+    similarity: float | None
+
+
+class MetricsSchema(BaseModel):
+    total_latency_ms: float
+    retrieval_latency_ms: float
+    rerank_latency_ms: float
+    generation_latency_ms: float
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    throughput_tokens_per_second: float
 
 
 class AskResponseSchema(BaseModel):
@@ -28,6 +42,7 @@ class AskResponseSchema(BaseModel):
     sources: List[SourceSchema]
     confidence: ConfidenceSchema
     latency_ms: float
+    metrics: MetricsSchema
 
 
 class HealthResponseSchema(BaseModel):

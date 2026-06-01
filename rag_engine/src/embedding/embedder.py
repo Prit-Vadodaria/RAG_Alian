@@ -31,6 +31,7 @@ MODEL_SPECS: dict[str, EmbeddingModelSpec] = {
 }
 
 EMBEDDING_MODEL_CANDIDATES = tuple(MODEL_SPECS)
+_MODEL_CACHE = {}
 
 
 class Embedder(Protocol):
@@ -53,22 +54,34 @@ class SentenceTransformerEmbedder:
         self.batch_size = batch_size
         self.cache_dir = cache_dir
         self.spec = MODEL_SPECS.get(model_name, EmbeddingModelSpec())
-        self._model = None
 
+
+    
     @property
     def model(self):
-        if self._model is None:
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
-            os.environ.setdefault("HF_HOME", str(self.cache_dir))
-            os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+        global _MODEL_CACHE
 
-            from sentence_transformers import SentenceTransformer
+        # Return already loaded model
+        if self.model_name in _MODEL_CACHE:
+            return _MODEL_CACHE[self.model_name]
 
-            self._model = SentenceTransformer(
-                self.model_name,
-                trust_remote_code=self.spec.trust_remote_code,
-            )
-        return self._model
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        os.environ.setdefault("HF_HOME", str(self.cache_dir))
+        os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+        os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+        os.environ.setdefault("TQDM_DISABLE", "1")
+
+        from sentence_transformers import SentenceTransformer
+
+        model = SentenceTransformer(
+            self.model_name,
+            trust_remote_code=self.spec.trust_remote_code,
+        )
+
+        _MODEL_CACHE[self.model_name] = model
+
+        return model
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         if not texts:
@@ -79,7 +92,7 @@ class SentenceTransformerEmbedder:
             batch_size=self.batch_size,
             convert_to_numpy=True,
             normalize_embeddings=True,
-            show_progress_bar=True,
+            show_progress_bar=False,
         )
         return _to_float_vectors(embeddings)
 

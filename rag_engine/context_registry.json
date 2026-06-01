@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "contexts": [
+    {
+      "id": "alian_default",
+      "name": "Alian Software",
+      "seed_url": "",
+      "status": "ready",
+      "path": "data/indexes/chroma",
+      "is_default": true,
+      "is_deletable": false
+    },
+    {
+      "id": "www-mbit-edu-in_68f49f44",
+      "name": "www.mbit.edu.in",
+      "seed_url": "https://www.mbit.edu.in/",
+      "status": "ready",
+      "path": "websites/www-mbit-edu-in_68f49f44",
+      "is_default": false,
+      "is_deletable": true,
+      "chunks_created": 501
+    }
+  ]
+}

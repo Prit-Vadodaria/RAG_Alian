@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   MessageSquare,
   Cpu,
@@ -14,12 +14,16 @@ import NewChatButton from "./NewChatButton";
 import ChatList from "./ChatList";
 import { useChatStore } from "../../store/chatStore";
 import ContextSelector from "../context/ContextSelector";
-import AddContextModal from "../context/AddContextModal";
-import { useState } from "react";
 
 function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
+  const navigate = useNavigate();
   const createChat = useChatStore((state) => state.createChat);
-  const [showModal, setShowModal] = useState(false);
+
+  const handleNewChat = () => {
+    createChat();
+    navigate("/");
+    onClose?.();
+  };
   const widthClass = collapsed ? "w-16" : "w-80";
   const paddingClass = collapsed ? "p-2" : "p-4";
 
@@ -90,16 +94,16 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
 
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <NewChatButton onCreate={createChat} className="flex-1" />
-                <button
-                  type="button"
-                  onClick={() => setShowModal(true)}
+                <NewChatButton onCreate={handleNewChat} className="flex-1" />
+                <NavLink
+                  to="/settings#knowledge-contexts"
+                  onClick={onClose}
                   className="inline-flex items-center justify-center rounded-2xl border border-cyan-500 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/15"
-                  aria-label="Add website context"
+                  aria-label="Manage contexts in settings"
                 >
                   <Plus className="h-4 w-4" />
-                  <span> Add Website</span>
-                </button>
+                  <span>Contexts</span>
+                </NavLink>
               </div>
 
               <div>
@@ -110,17 +114,9 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
                 <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.32em] text-zinc-400">
                   Conversations
                 </h2>
-                <ChatList />
+                <ChatList onAfterSelect={onClose} />
               </div>
             </div>
-
-            {showModal && (
-              <AddContextModal
-                onClose={() => {
-                  setShowModal(false);
-                }}
-              />
-            )}
 
             <div className="mt-auto space-y-3">
               <nav className="space-y-3 rounded-[1.75rem] border border-zinc-800 bg-[#0f1116] p-4">

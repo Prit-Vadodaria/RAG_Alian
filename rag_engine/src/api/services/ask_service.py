@@ -5,7 +5,12 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from src.api.schemas.response_schema import AskResponseSchema, ConfidenceSchema, SourceSchema
+from src.api.schemas.response_schema import (
+    AskResponseSchema,
+    ConfidenceSchema,
+    MetricsSchema,
+    SourceSchema,
+)
 from src.rag.rag_pipeline import RagPipeline
 
 
@@ -21,6 +26,8 @@ def _serialize_sources(sources: list[Any]) -> list[SourceSchema]:
             section=source.section,
             chunk_id=source.chunk_id,
             rerank_score=source.rerank_score,
+            text=source.text,
+            similarity=source.similarity,
         )
         for source in sources
     ]
@@ -50,11 +57,25 @@ def ask_query(query: str, context_id: str = "alian_default") -> AskResponseSchem
     confidence = ConfidenceSchema(
         retrieval=result.confidence_breakdown.get("retrieval", 0.0),
         grounding=result.confidence_breakdown.get("grounding", 0.0),
+        rerank=result.confidence_breakdown.get("rerank", 0.0),
         overall=result.confidence,
     )
 
     sources = _serialize_sources(result.sources)
     citations = [source.source_id for source in sources]
+    result_metrics = result.metrics
+    metrics = MetricsSchema(
+        total_latency_ms=round(result_metrics.total_latency_ms, 1),
+        retrieval_latency_ms=round(result_metrics.retrieval_latency_ms, 1),
+        rerank_latency_ms=round(result_metrics.rerank_latency_ms, 1),
+        generation_latency_ms=round(result_metrics.generation_latency_ms, 1),
+        input_tokens=result_metrics.input_tokens,
+        output_tokens=result_metrics.output_tokens,
+        total_tokens=result_metrics.total_tokens,
+        throughput_tokens_per_second=round(
+            result_metrics.throughput_tokens_per_second, 2
+        ),
+    )
 
     return AskResponseSchema(
         success=True,
@@ -64,4 +85,5 @@ def ask_query(query: str, context_id: str = "alian_default") -> AskResponseSchem
         sources=sources,
         confidence=confidence,
         latency_ms=latency_ms,
+        metrics=metrics,
     )

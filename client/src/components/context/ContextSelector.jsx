@@ -1,5 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useContextStore } from "../../store/contextStore";
+import ConfirmDialog from "../ui/ConfirmDialog";
+
+function isReadyContext(context) {
+  const status = (context?.status || "").toLowerCase();
+  return status === "ready";
+}
 
 export default function ContextSelector() {
   const {
@@ -8,15 +14,21 @@ export default function ContextSelector() {
     fetchContexts,
     setSelectedContext,
     removeContext,
+    showToast,
   } = useContextStore();
   const [open, setOpen] = useState(false);
+  const [confirmContext, setConfirmContext] = useState(null);
   const [deletingContextId, setDeletingContextId] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
   const rootRef = useRef(null);
 
   useEffect(() => {
     fetchContexts();
-  }, []);
+    const interval = setInterval(() => {
+      fetchContexts();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchContexts]);
 
   useEffect(() => {
     function onDoc(e) {
@@ -27,9 +39,25 @@ export default function ContextSelector() {
     return () => document.removeEventListener("pointerdown", onDoc);
   }, []);
 
-  const current = contexts.find((c) => c.id === selectedContext) || {
-    name: "Alian Software",
-  };
+  const readyContexts = useMemo(
+    () => contexts.filter(isReadyContext),
+    [contexts],
+  );
+
+  useEffect(() => {
+    if (!readyContexts.some((c) => c.id === selectedContext)) {
+      const fallback =
+        readyContexts.find((c) => c.id === "alian_default")?.id ||
+        readyContexts[0]?.id ||
+        "alian_default";
+      setSelectedContext(fallback);
+    }
+  }, [readyContexts, selectedContext, setSelectedContext]);
+
+  const current = readyContexts.find((c) => c.id === selectedContext) ||
+    readyContexts.find((c) => c.id === "alian_default") || {
+      name: "Alian Software",
+    };
 
   return (
     <div className="relative w-full" ref={rootRef}>
@@ -49,19 +77,18 @@ export default function ContextSelector() {
               {deleteError}
             </div>
           )}
-          {contexts.length === 0 && (
-            <div className="px-2 py-2 text-sm text-zinc-400">No contexts</div>
+          {readyContexts.length === 0 && (
+            <div className="px-2 py-2 text-sm text-zinc-400">
+              No ready contexts
+            </div>
           )}
-          {contexts.map((c) => (
+          {readyContexts.map((c) => (
             <div
               key={c.id}
               className="flex items-center justify-between gap-2 rounded px-2 py-2 hover:bg-zinc-800"
             >
               <div className="min-w-0">
                 <div className="truncate font-medium">{c.name}</div>
-                <div className="text-xs text-zinc-400 truncate">
-                  {c.status || "ready"}
-                </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                 <button
@@ -80,26 +107,7 @@ export default function ContextSelector() {
                 </button>
                 {c.isDeletable && (
                   <button
-                    onClick={async () => {
-                      if (
-                        !confirm(
-                          `Delete context '${c.name}'? This cannot be undone.`,
-                        )
-                      )
-                        return;
-                      setDeleteError(null);
-                      setDeletingContextId(c.id);
-                      try {
-                        await removeContext(c.id);
-                        await fetchContexts();
-                        setOpen(false);
-                      } catch (err) {
-                        console.error("Failed to delete context", err);
-                        setDeleteError(err?.message || String(err));
-                      } finally {
-                        setDeletingContextId(null);
-                      }
-                    }}
+                    onClick={() => setConfirmContext(c)}
                     disabled={deletingContextId === c.id}
                     className={`px-2 py-1 rounded text-sm ${
                       deletingContextId === c.id
@@ -115,6 +123,36 @@ export default function ContextSelector() {
           ))}
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(confirmContext)}
+        title="Confirm delete"
+        description={
+          confirmContext
+            ? `Delete context '${confirmContext.name}'? This cannot be undone.`
+            : ""
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        loading={deletingContextId === confirmContext?.id}
+        onConfirm={async () => {
+          if (!confirmContext) return;
+          setDeleteError(null);
+          setDeletingContextId(confirmContext.id);
+          try {
+            await removeContext(confirmContext.id);
+            await fetchContexts();
+            showToast(`Deleted context '${confirmContext.name}'.`, "success");
+            setOpen(false);
+            setConfirmContext(null);
+          } catch (err) {
+            console.error("Failed to delete context", err);
+            setDeleteError(err?.message || String(err));
+          } finally {
+            setDeletingContextId(null);
+          }
+        }}
+        onCancel={() => setConfirmContext(null)}
+      />
     </div>
   );
 }

@@ -1,15 +1,23 @@
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 
 import ConversationItem from "./ConversationItem";
 import { useChatStore } from "../../store/chatStore";
 import { formatDateLabel } from "../../utils/format";
 
-function ChatList({ collapsed }) {
+function ChatList({ collapsed, onAfterSelect }) {
   if (collapsed) return null;
+  const navigate = useNavigate();
   const chats = useChatStore((state) => state.chats);
   const activeChatId = useChatStore((state) => state.activeChatId);
   const setActiveChat = useChatStore((state) => state.setActiveChat);
   const deleteChat = useChatStore((state) => state.deleteChat);
+
+  const handleSelectChat = (chatId) => {
+    setActiveChat(chatId);
+    navigate("/");
+    onAfterSelect?.();
+  };
 
   const groupedChats = useMemo(() => {
     const today = new Date().toLocaleDateString();
@@ -37,7 +45,7 @@ function ChatList({ collapsed }) {
                 key={chat.id}
                 chat={chat}
                 active={chat.id === activeChatId}
-                onSelect={setActiveChat}
+                onSelect={handleSelectChat}
                 onDelete={deleteChat}
               />
             ))}

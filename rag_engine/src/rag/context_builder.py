@@ -21,6 +21,8 @@ class ContextSource:
     section: str
     chunk_id: str
     rerank_score: float
+    text: str
+    similarity: float | None
 
 
 def build_context(
@@ -57,12 +59,32 @@ def build_context(
                 if trimmed.strip():
                     parts.append(trimmed)
                     sources.append(
-                        ContextSource(source_id, title, url, section, result.chunk_id, result.rerank_score)
+                        ContextSource(
+                            source_id,
+                            title,
+                            url,
+                            section,
+                            result.chunk_id,
+                            result.rerank_score,
+                            result.text,
+                            result.score,
+                        )
                     )
             break
 
         parts.append(block)
-        sources.append(ContextSource(source_id, title, url, section, result.chunk_id, result.rerank_score))
+        sources.append(
+            ContextSource(
+                source_id,
+                title,
+                url,
+                section,
+                result.chunk_id,
+                result.rerank_score,
+                result.text,
+                result.score,
+            )
+        )
         used.add(dedupe_key)
         used_tokens += block_tokens
 
