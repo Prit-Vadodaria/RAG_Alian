@@ -30,35 +30,19 @@ function MessageBubble({ message, onSelectSource }) {
           {message.content}
         </ReactMarkdown>
       </div>
-      {message.citations?.length ? (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {message.citations.map((cite) => (
-            <CitationBadge key={cite} label={cite} />
-          ))}
-        </div>
-      ) : null}
-      {isAssistant && message.sources?.length ? (
-        <div className="mt-5 space-y-3">
-          {message.sources.map((source) => (
-            <button
-              key={source.source_id || source.id}
-              type="button"
-              onClick={() => onSelectSource(source)}
-              className="w-full rounded-3xl border border-zinc-800 bg-[#0d1015] px-4 py-3 text-left text-sm text-zinc-200 transition hover:border-cyan-500 hover:bg-[#111317]"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-semibold text-zinc-100 truncate">
-                  {source.source_id || source.id}
-                </span>
-                <span className="text-xs text-zinc-500">
-                  {source.section || "Section unavailable"}
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-zinc-400 truncate">
-                {source.title || source.url || "Source text unavailable"}
-              </p>
-            </button>
-          ))}
+      {message.citations?.length || message.sources?.length ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {message.sources?.length
+            ? message.sources.map((source) => (
+                <CitationBadge
+                  key={source.source_id || source.id}
+                  label={source.source_id || source.id || "Source"}
+                  onClick={() => onSelectSource(source)}
+                />
+              ))
+            : message.citations.map((cite) => (
+                <CitationBadge key={cite} label={cite} />
+              ))}
         </div>
       ) : null}
     </div>
