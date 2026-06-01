@@ -15,6 +15,7 @@ import RetrievalStats from "../components/metrics/RetrievalStats";
 import LatencyBadge from "../components/metrics/LatencyBadge";
 import { createChatTitle } from "../utils/format";
 import { useContextStore } from "../store/contextStore";
+import { usePromptSettingsStore } from "../store/promptSettingsStore";
 
 const thinkingMessages = [
   "Searching knowledge base...",
@@ -99,7 +100,8 @@ function Chat() {
     try {
       const selectedContext =
         useContextStore.getState().selectedContext || "alian_default";
-      const response = await askRag(prompt, selectedContext);
+      const promptSettings = usePromptSettingsStore.getState().settings;
+      const response = await askRag(prompt, selectedContext, promptSettings);
       const assistantMessage = createMessage({
         role: "assistant",
         content:
@@ -266,3 +268,5 @@ function Chat() {
 }
 
 export default Chat;
+
+

@@ -33,7 +33,11 @@ def _serialize_sources(sources: list[Any]) -> list[SourceSchema]:
     ]
 
 
-def ask_query(query: str, context_id: str = "alian_default") -> AskResponseSchema:
+def ask_query(
+    query: str,
+    context_id: str = "alian_default",
+    prompt_settings: dict[str, object] | None = None,
+) -> AskResponseSchema:
     stripped_query = query.strip() if isinstance(query, str) else ""
     if not stripped_query:
         raise HTTPException(status_code=400, detail="Query must not be empty.")
@@ -41,7 +45,11 @@ def ask_query(query: str, context_id: str = "alian_default") -> AskResponseSchem
     start_time = time.perf_counter()
 
     try:
-        result = _pipeline.run(stripped_query, context_id=context_id)
+        result = _pipeline.run(
+            stripped_query,
+            context_id=context_id,
+            prompt_settings=prompt_settings,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:

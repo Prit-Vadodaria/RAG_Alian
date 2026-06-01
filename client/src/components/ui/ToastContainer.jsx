@@ -27,7 +27,7 @@ export default function ToastContainer() {
           variantStyles[toastType] || variantStyles.info
         }`}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-3">
           <div className="min-w-0 text-sm leading-6">{toastMessage}</div>
           <button
             type="button"

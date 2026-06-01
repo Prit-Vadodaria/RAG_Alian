@@ -16,10 +16,9 @@ from src.retrieval.reranker import RerankedResult
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass(frozen=True)
 class RagMetrics:
-    """Execution and token metrics for a RAG query."""
-
     total_latency_ms: float
     retrieval_latency_ms: float
     rerank_latency_ms: float
@@ -32,8 +31,6 @@ class RagMetrics:
 
 @dataclass(frozen=True)
 class RagResult:
-    """Final RAG output with answer, sources, and intermediate artifacts."""
-
     query: str
     answer: str
     confidence: float
@@ -46,26 +43,8 @@ class RagResult:
     sources: list[ContextSource]
     metrics: RagMetrics
 
-    def to_dict(self) -> dict[str, object]:
-        """Serialize the RAG response as a structured payload."""
-        return {
-            "query": self.query,
-            "answer": self.answer,
-            "confidence": self.confidence,
-            "confidence_label": self.confidence_label,
-            "confidence_breakdown": dict(self.confidence_breakdown),
-            "vector_results_count": self.vector_results_count,
-            "reranker_status": self.reranker_status,
-            "reranked_results": self.reranked_results,
-            "context": self.context,
-            "sources": self.sources,
-            "metrics": self.metrics,
-        }
-
 
 class RagPipeline:
-    """Production-oriented lightweight RAG pipeline for Google Gemini generation."""
-
     def __init__(
         self,
         *,
@@ -84,86 +63,49 @@ class RagPipeline:
         )
         self.generation_backend = generation_backend or GoogleGenerationBackend()
 
-    def run(self, query: str, context_id: str = "alian_default") -> RagResult:
-        """Execute end-to-end local RAG for one query."""
-
+    def run(
+        self,
+        query: str,
+        context_id: str = "alian_default",
+        prompt_settings: dict[str, object] | None = None,
+    ) -> RagResult:
         pipeline_start = time.perf_counter()
-
-        # ---------------- Retrieval ----------------
-
         retrieval_start = time.perf_counter()
 
         vector_results, reranked = self.retrieval_pipeline.retrieve(query, context_id=context_id)
-
-        retrieval_latency_ms = (
-            time.perf_counter() - retrieval_start
-        ) * 1000
-
+        retrieval_latency_ms = (time.perf_counter() - retrieval_start) * 1000
         final_chunks = reranked[: self.final_top_k]
 
-        # ---------------- Context Building ----------------
+        context, sources = build_context(final_chunks, max_context_tokens=self.max_context_tokens)
+        if final_chunks and not context:
+            raise RuntimeError("Final context is empty after building from reranked chunks.")
 
-        context, sources = build_context(
-            final_chunks,
-            max_context_tokens=self.max_context_tokens,
+        prompt = build_grounded_prompt(
+            query,
+            context,
+            role=(prompt_settings or {}).get("role") if prompt_settings else None,
+            additional_constraints=(prompt_settings or {}).get("constraints") if prompt_settings else None,
         )
 
-        if final_chunks and not context:
-            raise RuntimeError(
-                "Final context is empty after building from reranked chunks."
-            )
-
-        # ---------------- Prompt ----------------
-
-        prompt = build_grounded_prompt(query, context)
-
-        # ---------------- Generation ----------------
-
         generation_start = time.perf_counter()
-
         generation_result = self.generation_backend.generate(prompt)
-
         answer = generation_result.text.strip()
-
-        generation_latency_ms = (
-            time.perf_counter() - generation_start
-        ) * 1000
+        generation_latency_ms = (time.perf_counter() - generation_start) * 1000
 
         if not answer:
             answer = "I don't know based on the provided context."
 
-        # ---------------- Confidence ----------------
+        confidence, breakdown = compute_confidence_breakdown(vector_results, final_chunks, answer, context)
 
-        confidence, breakdown = compute_confidence_breakdown(
-            vector_results,
-            final_chunks,
-            answer,
-            context,
-        )
-
-        # ---------------- Metrics ----------------
-
-        total_latency_ms = (
-            time.perf_counter() - pipeline_start
-        ) * 1000
-
+        total_latency_ms = (time.perf_counter() - pipeline_start) * 1000
         rerank_latency_ms = (
-            getattr(
-                self.retrieval_pipeline.reranker,
-                "last_execution_seconds",
-                0.0,
-            ) or 0.0
+            getattr(self.retrieval_pipeline.reranker, "last_execution_seconds", 0.0) or 0.0
         ) * 1000
 
-        # Approximate token counts
         input_tokens = generation_result.input_tokens
         output_tokens = generation_result.output_tokens
         total_tokens = generation_result.total_tokens
-        
-        throughput_tokens_per_second = (
-            output_tokens /
-            max(generation_latency_ms / 1000.0, 0.001)
-        )
+        throughput_tokens_per_second = output_tokens / max(generation_latency_ms / 1000.0, 0.001)
 
         metrics = RagMetrics(
             total_latency_ms=total_latency_ms,
@@ -175,26 +117,6 @@ class RagPipeline:
             total_tokens=total_tokens,
             throughput_tokens_per_second=throughput_tokens_per_second,
         )
-
-        # ---------------- Optional Logging ----------------
-
-        if confidence < 0.65:
-            logger.warning(
-                (
-                    "Low confidence RAG response "
-                    "confidence=%.4f label=%s "
-                    "retrieval=%.4f rerank=%.4f "
-                    "grounding=%.4f answer_quality=%.4f"
-                ),
-                confidence,
-                confidence_label(confidence),
-                breakdown.retrieval,
-                breakdown.rerank,
-                breakdown.grounding,
-                breakdown.answer_quality,
-            )
-
-        # ---------------- Return ----------------
 
         return RagResult(
             query=query,

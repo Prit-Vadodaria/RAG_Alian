@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from src.api.routes.ask import router as ask_router
 from src.api.routes.health import router as health_router
+from src.api.routes.prompt_settings import router as prompt_settings_router
 
 
 app = FastAPI(
@@ -21,12 +22,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["*"],
 )
 
 app.include_router(health_router, prefix="/api")
 app.include_router(ask_router, prefix="/api")
+app.include_router(prompt_settings_router, prefix="/api")
 
 
 @app.exception_handler(RequestValidationError)

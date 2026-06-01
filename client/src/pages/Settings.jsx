@@ -1,16 +1,75 @@
-import { useEffect } from "react";
-import { Cog, Palette, SlidersHorizontal, Moon, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Cog } from "lucide-react";
 import SectionCard from "../components/ui/SectionCard";
 import ContextManager from "../components/context/ContextManager";
+import { usePromptSettingsStore } from "../store/promptSettingsStore";
+import { useContextStore } from "../store/contextStore";
+
+function normalizeConstraints(text) {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
 
 function Settings() {
+  const { settings, loadSettings, saveSettings, resetSettings, isLoading } =
+    usePromptSettingsStore();
+  const showToast = useContextStore((state) => state.showToast);
+
+  const [role, setRole] = useState("");
+  const [constraintsText, setConstraintsText] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+
   useEffect(() => {
+    loadSettings();
     if (window.location.hash === "#knowledge-contexts") {
       document
         .getElementById("knowledge-contexts")
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, []);
+  }, [loadSettings]);
+
+  const isDirty = useMemo(() => {
+    const currentRole = role.trim();
+    const baseRole = (settings.role || "").trim();
+
+    const currentConstraints = normalizeConstraints(constraintsText);
+    const baseConstraints = (settings.constraints || []).map((line) =>
+      String(line).trim(),
+    );
+
+    if (currentRole !== baseRole) return true;
+    if (currentConstraints.length !== baseConstraints.length) return true;
+
+    for (let i = 0; i < currentConstraints.length; i += 1) {
+      if (currentConstraints[i] !== baseConstraints[i]) return true;
+    }
+    return false;
+  }, [role, constraintsText, settings]);
+
+  const handleSave = async () => {
+    if (!isEditing || !isDirty) return;
+
+    const constraints = normalizeConstraints(constraintsText);
+    await saveSettings({ role: role.trim(), constraints });
+    setIsEditing(false);
+    showToast("Prompt settings saved.", "success");
+  };
+
+  const handleReset = async () => {
+    const next = await resetSettings();
+    setRole(next.role || "");
+    setConstraintsText((next.constraints || []).join("\n"));
+    setIsEditing(false);
+    showToast("Prompt settings reset to defaults.", "success");
+  };
+
+  const handleEdit = () => {
+    setRole(settings.role || "");
+    setConstraintsText((settings.constraints || []).join("\n"));
+    setIsEditing(true);
+  };
 
   return (
     <div className="h-full min-h-0 overflow-y-auto pr-1 space-y-6">
@@ -35,115 +94,59 @@ function Settings() {
         </div>
       </div>
 
+      <SectionCard title="Prompt settings">
+        <div className="space-y-3">
+          <label className="block text-sm text-zinc-300">Role</label>
+          <textarea
+            value={isEditing ? role : settings.role || ""}
+            onChange={(e) => setRole(e.target.value)}
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-70"
+            rows={3}
+            disabled={isLoading || !isEditing}
+          />
+          <label className="block text-sm text-zinc-300">
+            Additional constraints (one per line)
+          </label>
+          <textarea
+            value={
+              isEditing
+                ? constraintsText
+                : (settings.constraints || []).join("\n")
+            }
+            onChange={(e) => setConstraintsText(e.target.value)}
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-70"
+            rows={6}
+            disabled={isLoading || !isEditing}
+          />
+          <div className="flex gap-3">
+            <button
+              onClick={handleEdit}
+              disabled={isLoading || isEditing}
+              className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Edit
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isLoading || !isEditing || !isDirty}
+              className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Save
+            </button>
+            <button
+              onClick={handleReset}
+              disabled={isLoading}
+              className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Reset Defaults
+            </button>
+          </div>
+        </div>
+      </SectionCard>
+
       <div id="knowledge-contexts" className="scroll-mt-6">
         <SectionCard title="Knowledge contexts">
           <ContextManager />
-        </SectionCard>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard title="Appearance">
-          <div className="space-y-5">
-            <div className="rounded-[1.75rem] border border-zinc-800 bg-[#0f1116] p-5">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-zinc-100">
-                    Dark theme
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-400">
-                    Premium AI-native appearance for all pages.
-                  </p>
-                </div>
-                <label className="relative inline-flex h-7 w-12 cursor-pointer rounded-full bg-zinc-800 transition">
-                  <input type="checkbox" className="peer sr-only" />
-                  <span className="absolute inset-0 rounded-full bg-zinc-800 transition peer-checked:bg-cyan-500" />
-                  <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
-                </label>
-              </div>
-            </div>
-            <div className="rounded-[1.75rem] border border-zinc-800 bg-[#0f1116] p-5">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-zinc-100">
-                    Compact mode
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-400">
-                    Tighter spacing for fast workflows.
-                  </p>
-                </div>
-                <label className="relative inline-flex h-7 w-12 cursor-pointer rounded-full bg-zinc-800 transition">
-                  <input type="checkbox" className="peer sr-only" />
-                  <span className="absolute inset-0 rounded-full bg-zinc-800 transition peer-checked:bg-cyan-500" />
-                  <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
-                </label>
-              </div>
-            </div>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Workspace controls">
-          <div className="space-y-5">
-            <div className="rounded-[1.75rem] border border-zinc-800 bg-[#0f1116] p-5">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-zinc-100">
-                    Model target
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-400">
-                    Select the best model for your retrieval workflow.
-                  </p>
-                </div>
-                <div className="inline-flex items-center gap-2 rounded-3xl border border-zinc-800 bg-[#111317] px-3 py-2 text-sm text-zinc-200">
-                  <Sparkles className="h-4 w-4 text-cyan-400" />
-                  Gemini
-                </div>
-              </div>
-            </div>
-            <div className="rounded-[1.75rem] border border-zinc-800 bg-[#0f1116] p-5">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-zinc-100">
-                    Retrieval hints
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-400">
-                    Enable richer context signals in the returned answers.
-                  </p>
-                </div>
-                <label className="relative inline-flex h-7 w-12 cursor-pointer rounded-full bg-zinc-800 transition">
-                  <input type="checkbox" className="peer sr-only" />
-                  <span className="absolute inset-0 rounded-full bg-zinc-800 transition peer-checked:bg-cyan-500" />
-                  <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
-                </label>
-              </div>
-            </div>
-          </div>
-        </SectionCard>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard title="Experience">
-          <div className="rounded-[1.75rem] border border-zinc-800 bg-[#0f1116] p-5 text-sm text-zinc-400">
-            <div className="flex items-center gap-3 text-cyan-400">
-              <Palette className="h-5 w-5" />
-              <p className="font-semibold text-zinc-100">Design mode</p>
-            </div>
-            <p className="mt-3">
-              Fine-tune the interface without changing your backend logic.
-            </p>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="API & tools">
-          <div className="rounded-[1.75rem] border border-zinc-800 bg-[#0f1116] p-5 text-sm text-zinc-400">
-            <div className="flex items-center gap-3 text-cyan-400">
-              <SlidersHorizontal className="h-5 w-5" />
-              <p className="font-semibold text-zinc-100">Workspace controls</p>
-            </div>
-            <p className="mt-3">
-              Manage conversation behavior, system prompts, and retrieval
-              defaults.
-            </p>
-          </div>
         </SectionCard>
       </div>
     </div>

@@ -30,8 +30,8 @@ function ChatInput({ onSubmit, disabled }) {
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           onKeyDown={handleKeyDown}
-          rows={3}
-          className="flex-1 resize-none rounded-2xl border border-zinc-800 bg-[#0b0c11] px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+          rows={1}
+          className="h-12 flex-1 resize-none rounded-2xl border border-zinc-800 bg-[#0b0c11] px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
           placeholder="Type your message..."
           disabled={disabled}
         />
