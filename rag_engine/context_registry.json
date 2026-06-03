@@ -30,20 +30,6 @@
         "chunkOverlapTokens": 60
       },
       "chunks_created": 751
-    },
-    {
-      "id": "minimalist-ae_792fa25f",
-      "name": "minimalist.ae",
-      "seed_url": "https://minimalist.ae/",
-      "status": "ingesting",
-      "path": "websites/minimalist-ae_792fa25f",
-      "is_default": false,
-      "is_deletable": true,
-      "chunking": {
-        "maxChunkTokens": 250,
-        "minChunkTokens": 80,
-        "chunkOverlapTokens": 50
-      }
     }
   ]
 }

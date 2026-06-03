@@ -100,6 +100,13 @@ def process_raw_html_directory(
     files = discover_raw_html_files(input_dir)
     selected_files = files[:limit] if limit is not None else files
     resolved_chunking = _resolve_chunking_config(chunking)
+    logger.info(
+        "HTML processing started files=%s workers=%s output_base_dir=%s chunking=%s",
+        len(selected_files),
+        workers,
+        output_base_dir,
+        resolved_chunking,
+    )
 
     processed = _process_files(selected_files, workers, chunking=resolved_chunking)
     seen_hashes: set[str] = set()
@@ -124,6 +131,7 @@ def process_raw_html_directory(
                 continue
 
             document = result.document
+            logger.info("Processing document %s source=%s", document.document_id, result.source_path)
             fingerprint = shingle_fingerprint(document.markdown)
             is_near_duplicate = any(
                 jaccard_similarity(fingerprint, existing) >= 0.92 for existing in seen_fingerprints
@@ -137,6 +145,7 @@ def process_raw_html_directory(
             seen_hashes.add(document.document_hash)
             seen_fingerprints.append(fingerprint)
             _export_document(document, cleaned_dir=cleaned_dir, structured_dir=structured_dir)
+            logger.info("Exported document %s markdown=%s structured=%s", document.document_id, cleaned_dir, structured_dir)
 
             unique_chunks = []
             for chunk in result.chunks:
@@ -145,6 +154,7 @@ def process_raw_html_directory(
                     continue
                 seen_chunk_hashes.add(chunk_hash)
                 unique_chunks.append(chunk)
+            logger.info("Document %s exported_chunks=%s", document.document_id, len(unique_chunks))
 
             _export_chunks(document.document_id, unique_chunks, chunks_dir=chunks_dir)
             exported_chunks += len(unique_chunks)
@@ -162,6 +172,14 @@ def process_raw_html_directory(
             logs_dir=str(logs_dir),
         )
     finally:
+        logger.info(
+            "HTML processing finished processed=%s skipped_duplicates=%s empty_pages=%s failed_pages=%s exported_chunks=%s",
+            processed_documents,
+            skipped_duplicates,
+            empty_pages,
+            failed_pages,
+            exported_chunks,
+        )
         close_logger(logger)
 
 
@@ -206,6 +224,7 @@ def _process_html_file(source_path: Path, *, chunking: dict[str, int] | None) ->
                 overlap_tokens=chunking["overlap_tokens"] if chunking else None,
             )
         ]
+        # Keep per-file logging in the parent process to avoid noisy parallel logs.
 
         return ProcessedDocument(source_path=str(source_path), document=document, chunks=chunks)
     except Exception as exc:

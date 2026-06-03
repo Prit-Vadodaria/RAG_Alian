@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -18,6 +19,7 @@ from typing import Iterable
 from urllib import robotparser
 from urllib.parse import urlparse
 
+from bs4 import BeautifulSoup
 from src.config.settings import (
     ALLOWED_CRAWL_DOMAINS,
     CRAWL_AUDIT_FILE,
@@ -29,8 +31,48 @@ from src.config.settings import (
     RESPECT_ROBOTS_TXT,
     SITEMAP_URLS_FILE,
 )
+from src.utils.logging import close_logger, get_logger
 
-DEFAULT_USER_AGENT = "WebsiteRAGCrawler/1.0"
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/125.0.0.0 Safari/537.36"
+)
+BLOCKED_URL_PATTERNS = (
+    "/cart",
+    "/checkout",
+    "/account",
+    "/search",
+    "/collections/all",
+)
+BLOCKED_QUERY_PATTERNS = ("variant=", "sort=", "page=")
+BLOCKED_CONTENT_PATTERNS = (
+    "captcha",
+    "access denied",
+    "verify you are human",
+    "unusual traffic",
+    "robot check",
+    "forbidden",
+    "cloudflare",
+    "blocked",
+)
+MIN_SAVED_HTML_LENGTH = 5000
+MIN_SAVED_TEXT_LENGTH = 200
+RETRYABLE_BROWSER_ERROR_PATTERNS = (
+    "timeout",
+    "navigation",
+    "target closed",
+    "browser has been closed",
+    "execution context was destroyed",
+    "execution context destroyed",
+    "frame was detached",
+    "net::err",
+    "protocol error",
+)
+
+
+class NonRetryableCrawlError(RuntimeError):
+    """Raised for content that should not be retried."""
 
 
 @dataclass(frozen=True)
@@ -88,10 +130,12 @@ def output_path_for_url(url: str, output_dir: Path = RAW_HTML_DIR) -> Path:
 
 
 def save_raw_html(url: str, html: str, output_dir: Path = RAW_HTML_DIR) -> Path:
-    """Persist raw rendered HTML with the source URL recorded as a comment."""
+    """Persist cleaned rendered HTML with the source URL recorded as a comment."""
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_path_for_url(url, output_dir)
-    output_path.write_text(f"<!-- source_url: {url} -->\n{html}", encoding="utf-8")
+    cleaned_html = _clean_html_for_save(html)
+    _validate_saved_html(url, cleaned_html)
+    output_path.write_text(f"<!-- source_url: {url} -->\n{cleaned_html}", encoding="utf-8")
     return output_path
 
 
@@ -112,6 +156,7 @@ class WebsiteCrawler:
         self.user_agent = user_agent
         self.playwright = None
         self.browser = None
+        self.context = None
 
     def __enter__(self) -> "WebsiteCrawler":
         self.start()
@@ -122,22 +167,42 @@ class WebsiteCrawler:
 
     def start(self) -> None:
         """Start Playwright and launch Chromium."""
-        if self.browser is not None:
+        if self.browser is not None and self.context is not None:
             return
 
         from playwright.sync_api import sync_playwright
 
         self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(headless=self.headless)
+        self.browser = self.playwright.chromium.launch(
+            headless=self.headless,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--disable-dev-shm-usage",
+                "--no-sandbox",
+                "--disable-web-security",
+                "--disable-features=IsolateOrigins,site-per-process",
+            ],
+        )
+        self.context = self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={"width": 1440, "height": 900},
+            java_script_enabled=True,
+            locale="en-US",
+        )
+        self.context.route("**/*", self._block_resource_requests)
 
     def crawl_page(self, url: str) -> str:
         """Return fully rendered HTML for one URL."""
         if self.browser is None:
             self.start()
 
-        page = self.browser.new_page(user_agent=self.user_agent)
+        assert self.context is not None
+        page = self.context.new_page()
         try:
-            page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
+            page.goto(url, wait_until="domcontentloaded", timeout=self.timeout_ms)
+            page.wait_for_timeout(3000)
+            self._auto_scroll(page)
+            page.wait_for_timeout(1000)
             return page.content()
         finally:
             page.close()
@@ -149,10 +214,15 @@ class WebsiteCrawler:
         for attempt in range(1, self.max_retries + 1):
             try:
                 return self.crawl_page(url)
+            except NonRetryableCrawlError:
+                raise
             except Exception as exc:  # Playwright raises several runtime exception types.
                 last_error = exc
-                if attempt < self.max_retries:
+                retryable = _is_retryable_browser_error(exc)
+                if retryable and attempt < self.max_retries:
                     time.sleep(min(attempt, 3))
+                    continue
+                raise
 
         raise RuntimeError(f"Failed to crawl {url}") from last_error
 
@@ -165,6 +235,26 @@ class WebsiteCrawler:
         if self.playwright is not None:
             self.playwright.stop()
             self.playwright = None
+        self.context = None
+
+    def _block_resource_requests(self, route) -> None:
+        resource_type = getattr(route.request, "resource_type", "")
+        if resource_type in {"image", "media", "font"}:
+            route.abort()
+            return
+        route.continue_()
+
+    def _auto_scroll(self, page) -> None:
+        try:
+            for _ in range(3):
+                page.evaluate(
+                    """() => {
+                        window.scrollTo(0, document.body.scrollHeight);
+                    }""",
+                )
+                page.wait_for_timeout(500)
+        except Exception:
+            return
 
 
 def crawl_urls(
@@ -180,41 +270,57 @@ def crawl_urls(
     manifest_file: Path | None = CRAWL_MANIFEST_FILE,
     user_agent: str = DEFAULT_USER_AGENT,
     workers: int = 1,
+    logs_dir: Path | None = None,
 ) -> list[CrawlResult]:
     """Crawl URLs and persist raw rendered HTML snapshots."""
     selected_urls = urls[:limit] if limit is not None else urls
     allowed_domain_set = _normalize_domains(allowed_domains)
     manifest = load_crawl_manifest(manifest_file)
+    logger, owns_logger = _setup_logger(logs_dir)
+    _log(logger, "info", "Crawl started total_urls=%s workers=%s output_dir=%s", len(selected_urls), workers, output_dir)
 
-    if workers > 1 and crawler is None:
-        indexed_results = _crawl_urls_parallel(
-            selected_urls,
-            workers=workers,
-            output_dir=output_dir,
-            allowed_domain_set=allowed_domain_set,
-            respect_robots=respect_robots,
-            crawl_delay_seconds=crawl_delay_seconds,
-            user_agent=user_agent,
+    try:
+        if workers > 1 and crawler is None:
+            indexed_results = _crawl_urls_parallel(
+                selected_urls,
+                workers=workers,
+                output_dir=output_dir,
+                allowed_domain_set=allowed_domain_set,
+                respect_robots=respect_robots,
+                crawl_delay_seconds=crawl_delay_seconds,
+                user_agent=user_agent,
+                logger=logger,
+            )
+            results = [result for _, result in sorted(indexed_results, key=lambda item: item[0])]
+        else:
+            results = _crawl_urls_serial(
+                selected_urls,
+                output_dir=output_dir,
+                crawler=crawler,
+                allowed_domain_set=allowed_domain_set,
+                respect_robots=respect_robots,
+                crawl_delay_seconds=crawl_delay_seconds,
+                user_agent=user_agent,
+                logger=logger,
+            )
+
+        for result in results:
+            _append_audit_record(result, audit_file)
+
+        if manifest_file is not None:
+            update_crawl_manifest(manifest, results, selected_urls, manifest_file, tombstone_missing=limit is None)
+
+        _log(
+            logger,
+            "info",
+            "Crawl finished success=%s failed=%s",
+            sum(1 for item in results if item.success),
+            sum(1 for item in results if not item.success),
         )
-        results = [result for _, result in sorted(indexed_results, key=lambda item: item[0])]
-    else:
-        results = _crawl_urls_serial(
-            selected_urls,
-            output_dir=output_dir,
-            crawler=crawler,
-            allowed_domain_set=allowed_domain_set,
-            respect_robots=respect_robots,
-            crawl_delay_seconds=crawl_delay_seconds,
-            user_agent=user_agent,
-        )
-
-    for result in results:
-        _append_audit_record(result, audit_file)
-
-    if manifest_file is not None:
-        update_crawl_manifest(manifest, results, selected_urls, manifest_file, tombstone_missing=limit is None)
-
-    return results
+        return results
+    finally:
+        if owns_logger and logger is not None:
+            close_logger(logger)
 
 
 def _crawl_urls_serial(
@@ -226,6 +332,7 @@ def _crawl_urls_serial(
     respect_robots: bool,
     crawl_delay_seconds: float,
     user_agent: str,
+    logger,
 ) -> list[CrawlResult]:
     results: list[CrawlResult] = []
     robots_cache: dict[str, robotparser.RobotFileParser] = {}
@@ -238,6 +345,7 @@ def _crawl_urls_serial(
             active_crawler.start()
 
         for url in urls:
+            _log(logger, "info", "Crawling URL %s", url)
             results.append(
                 _crawl_one_url(
                     url,
@@ -249,6 +357,7 @@ def _crawl_urls_serial(
                     last_request_at=last_request_at,
                     crawl_delay_seconds=crawl_delay_seconds,
                     user_agent=user_agent,
+                    logger=logger,
                 )
             )
     finally:
@@ -267,6 +376,7 @@ def _crawl_urls_parallel(
     respect_robots: bool,
     crawl_delay_seconds: float,
     user_agent: str,
+    logger,
 ) -> list[tuple[int, CrawlResult]]:
     indexed_urls = list(enumerate(urls))
     batches = [indexed_urls[index::workers] for index in range(workers)]
@@ -282,6 +392,7 @@ def _crawl_urls_parallel(
                 respect_robots,
                 crawl_delay_seconds,
                 user_agent,
+                logger,
             )
             for batch in batches
             if batch
@@ -299,6 +410,7 @@ def _crawl_url_batch(
     respect_robots: bool,
     crawl_delay_seconds: float,
     user_agent: str,
+    logger,
 ) -> list[tuple[int, CrawlResult]]:
     robots_cache: dict[str, robotparser.RobotFileParser] = {}
     last_request_at: dict[str, float] = {}
@@ -316,6 +428,7 @@ def _crawl_url_batch(
                 last_request_at=last_request_at,
                 crawl_delay_seconds=crawl_delay_seconds,
                 user_agent=user_agent,
+                logger=logger,
             )
             results.append((index, result))
 
@@ -333,10 +446,23 @@ def _crawl_one_url(
     last_request_at: dict[str, float],
     crawl_delay_seconds: float,
     user_agent: str,
+    logger,
 ) -> CrawlResult:
     parsed = urlparse(url)
     try:
+        skip_reason = _should_skip_url(url)
+        if skip_reason is not None:
+            _log(logger, "info", "Skipped URL url=%s reason=%s", url, skip_reason)
+            return CrawlResult(
+                url=url,
+                output_path=None,
+                success=False,
+                error=skip_reason,
+                status="skipped_url",
+            )
+
         if not _is_allowed_domain(parsed.netloc, allowed_domain_set):
+            _log(logger, "info", "Blocked by domain rules url=%s", url)
             return CrawlResult(
                 url=url,
                 output_path=None,
@@ -346,6 +472,7 @@ def _crawl_one_url(
             )
 
         if respect_robots and not _can_fetch(url, user_agent, robots_cache):
+            _log(logger, "info", "Blocked by robots.txt url=%s", url)
             return CrawlResult(
                 url=url,
                 output_path=None,
@@ -355,8 +482,10 @@ def _crawl_one_url(
             )
 
         _respect_crawl_delay(parsed.netloc, last_request_at, crawl_delay_seconds)
+        _log(logger, "info", "Fetching rendered page url=%s", url)
         html = crawler.crawl_page_with_retries(url)
         output_path = save_raw_html(url, html, output_dir)
+        _log(logger, "info", "Saved raw HTML url=%s path=%s bytes=%s", url, output_path, len(html.encode("utf-8")))
         return CrawlResult(
             url=url,
             output_path=output_path,
@@ -364,6 +493,16 @@ def _crawl_one_url(
             content_hash=hashlib.sha256(html.encode("utf-8")).hexdigest(),
         )
     except Exception as exc:
+        if isinstance(exc, NonRetryableCrawlError):
+            _log(logger, "info", "Rejected rendered page url=%s reason=%s", url, exc)
+            return CrawlResult(
+                url=url,
+                output_path=None,
+                success=False,
+                error=str(exc),
+                status="blocked_content",
+            )
+        _log(logger, "warning", "Failed crawling url=%s error=%s", url, exc)
         return CrawlResult(url=url, output_path=None, success=False, error=str(exc), status="failed")
 
 
@@ -412,6 +551,60 @@ def _respect_crawl_delay(host: str, last_request_at: dict[str, float], delay_sec
     last_request_at[host] = time.monotonic()
 
 
+def _should_skip_url(url: str) -> str | None:
+    parsed = urlparse(url)
+    path = parsed.path.lower().rstrip("/")
+    segments = [segment for segment in path.split("/") if segment]
+
+    if segments:
+        first_segment = segments[0]
+        if first_segment in {"cart", "checkout", "account", "search"}:
+            return f"blocked path {first_segment}"
+        if len(segments) >= 2 and segments[0] == "collections" and segments[1] == "all":
+            return "blocked path collections/all"
+
+    query = parsed.query.lower()
+    for blocked_param in BLOCKED_QUERY_PATTERNS:
+        if re.search(rf"(?:^|&){re.escape(blocked_param)}(?:=|&|$)", query):
+            return f"blocked query parameter {blocked_param}"
+
+    for blocked_pattern in BLOCKED_URL_PATTERNS:
+        if blocked_pattern in path:
+            return f"blocked path {blocked_pattern}"
+
+    return None
+
+
+def _clean_html_for_save(html: str) -> str:
+    soup = BeautifulSoup(html, "html.parser")
+    for tag_name in ("script", "style", "noscript", "svg"):
+        for tag in soup.find_all(tag_name):
+            tag.decompose()
+    return str(soup)
+
+
+def _validate_saved_html(url: str, html: str) -> None:
+    lower_html = html.lower()
+    if len(html.strip()) < MIN_SAVED_HTML_LENGTH:
+        raise NonRetryableCrawlError(f"Page content too small for {url}")
+
+    if any(pattern in lower_html for pattern in BLOCKED_CONTENT_PATTERNS):
+        raise NonRetryableCrawlError(f"Blocked or challenge page detected for {url}")
+
+    text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
+    if len(text) < MIN_SAVED_TEXT_LENGTH:
+        raise NonRetryableCrawlError(f"Page text too small for {url}")
+
+    visible_text = text.lower()
+    if any(pattern in visible_text for pattern in BLOCKED_CONTENT_PATTERNS):
+        raise NonRetryableCrawlError(f"Blocked or challenge page detected for {url}")
+
+
+def _is_retryable_browser_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return any(pattern in message for pattern in RETRYABLE_BROWSER_ERROR_PATTERNS)
+
+
 def _append_audit_record(result: CrawlResult, audit_file: Path | None) -> None:
     if audit_file is None:
         return
@@ -426,6 +619,19 @@ def _append_audit_record(result: CrawlResult, audit_file: Path | None) -> None:
     )
     with audit_file.open("a", encoding="utf-8") as file:
         file.write(json.dumps(record.__dict__, ensure_ascii=False) + "\n")
+
+
+def _setup_logger(logs_dir: Path | None):
+    if logs_dir is None:
+        return None, False
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    return get_logger("website_crawl", logs_dir / "crawl.log"), True
+
+
+def _log(logger, level: str, message: str, *args: object) -> None:
+    if logger is None:
+        return
+    getattr(logger, level)(message, *args)
 
 
 def load_crawl_manifest(manifest_file: Path | None = CRAWL_MANIFEST_FILE) -> dict[str, CrawlManifestEntry]:

@@ -11,7 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 from requests import RequestException
 
-from src.config.settings import DISCOVERY_MAX_DEPTH, DISCOVERY_MAX_PAGES, MAX_RETRIES, REQUEST_TIMEOUT
+from src.config.settings import MAX_RETRIES, REQUEST_TIMEOUT
 from src.ingestion.sitemap import parse_sitemap
 from src.utils.logging import close_logger, get_logger
 from src.utils.url import (
@@ -78,9 +78,12 @@ def _fetch(session: requests.Session, url: str, *, timeout: int, max_retries: in
     last_error: Exception | None = None
     for attempt in range(1, max_retries + 1):
         try:
+            _log(logger, "info", "Fetching %s (attempt %s/%s)", url, attempt, max_retries)
             response = session.get(url, timeout=timeout, allow_redirects=True)
             if response.status_code == 200 and "html" in response.headers.get("Content-Type", "").lower():
+                _log(logger, "info", "Fetched %s successfully", url)
                 return response.text
+            _log(logger, "info", "Skipping %s with status=%s content-type=%s", url, response.status_code, response.headers.get("Content-Type", ""))
         except RequestException as exc:
             last_error = exc
             if attempt < max_retries:
@@ -126,8 +129,6 @@ def _is_english_url(url: str, root_netloc: str, language: str = "en") -> bool:
 
 def discover_internal_urls(
     root_url: str,
-    max_pages: int = DISCOVERY_MAX_PAGES,
-    max_depth: int = DISCOVERY_MAX_DEPTH,
     *,
     logs_dir: Path | None = None,
     request_timeout: int = REQUEST_TIMEOUT,
@@ -140,12 +141,20 @@ def discover_internal_urls(
     start = normalize_url(root_url)
 
     logger, owns_logger = _setup_logger(logs_dir)
+    _log(
+        logger,
+        "info",
+        "Discovery started root_url=%s language=%s",
+        root_url,
+        language,
+    )
     session = requests.Session()
     session.headers.update(DEFAULT_BROWSER_HEADERS)
 
     seeded: list[str] = []
     try:
         sitemap_url = sitemap_url_for_root(root_url)
+        _log(logger, "info", "Attempting sitemap discovery from %s", sitemap_url)
         for raw in parse_sitemap(sitemap_url, timeout=request_timeout, visited=set()):
             norm = normalize_url(raw)
             if (
@@ -154,8 +163,9 @@ def discover_internal_urls(
                 and _is_english_url(norm, root_netloc, language=language)
             ):
                 seeded.append(norm)
-                if len(seeded) >= max_pages:
-                    break
+                _log(logger, "info", "Seeded URL accepted: %s", norm)
+            else:
+                _log(logger, "info", "Seeded URL skipped: %s", norm)
     except Exception as exc:
         _log(logger, "warning", "Sitemap discovery failed for %s: %s", root_url, exc)
 
@@ -170,14 +180,14 @@ def discover_internal_urls(
         queue.appendleft((start, 0))
 
     results: list[str] = []
-    while queue and len(results) < max_pages:
+    while queue:
         url, depth = queue.popleft()
         results.append(url)
-        if depth >= max_depth:
-            continue
+        _log(logger, "info", "Discovered URL accepted depth=%s url=%s", depth, url)
 
         html = _fetch(session, url, timeout=request_timeout, max_retries=max_retries, logger=logger)
         if not html:
+            _log(logger, "warning", "No HTML returned for %s", url)
             continue
         for href in _extract_links(html, url):
             norm = normalize_url(href)
@@ -187,14 +197,15 @@ def discover_internal_urls(
                 or is_asset_url(norm)
                 or not _is_english_url(norm, root_netloc, language=language)
             ):
+                _log(logger, "info", "Link skipped: %s", norm)
                 continue
             if norm in seen:
                 continue
             seen.add(norm)
             queue.append((norm, depth + 1))
-            if len(seen) >= max_pages:
-                break
+            _log(logger, "info", "Link queued depth=%s url=%s", depth + 1, norm)
 
+    _log(logger, "info", "Discovery finished count=%s", len(results))
     if owns_logger and logger is not None:
         close_logger(logger)
     return results
