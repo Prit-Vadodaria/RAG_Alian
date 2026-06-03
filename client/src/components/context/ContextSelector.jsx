@@ -46,17 +46,13 @@ export default function ContextSelector() {
 
   useEffect(() => {
     if (!readyContexts.some((c) => c.id === selectedContext)) {
-      const fallback =
-        readyContexts.find((c) => c.id === "alian_default")?.id ||
-        readyContexts[0]?.id ||
-        "alian_default";
-      setSelectedContext(fallback);
+      setSelectedContext(readyContexts[0]?.id || "");
     }
   }, [readyContexts, selectedContext, setSelectedContext]);
 
-  const current = readyContexts.find((c) => c.id === selectedContext) ||
-    readyContexts.find((c) => c.id === "alian_default") || {
-      name: "Alian Software",
+  const current =
+    readyContexts.find((c) => c.id === selectedContext) || {
+      name: "Select context",
     };
 
   return (

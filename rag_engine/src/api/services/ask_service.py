@@ -35,7 +35,11 @@ def _serialize_sources(sources: list[Any]) -> list[SourceSchema]:
 
 def ask_query(
     query: str,
-    context_id: str = "alian_default",
+    context_id: str = "",
+    chatbot_id: str | None = None,
+    namespace: str | None = None,
+    visitor_id: str | None = None,
+    origin: str | None = None,
     prompt_settings: dict[str, object] | None = None,
 ) -> AskResponseSchema:
     stripped_query = query.strip() if isinstance(query, str) else ""
@@ -48,6 +52,10 @@ def ask_query(
         result = _pipeline.run(
             stripped_query,
             context_id=context_id,
+            chatbot_id=chatbot_id,
+            namespace=namespace,
+            visitor_id=visitor_id,
+            origin=origin,
             prompt_settings=prompt_settings,
         )
     except ValueError as exc:

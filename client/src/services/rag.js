@@ -1,21 +1,36 @@
+import axios from "axios";
 import apiClient from "./api";
+
+const SERVER_BASE =
+  import.meta.env.VITE_CONTEXT_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "http://127.0.0.1:5000/api";
+
+const serverClient = axios.create({
+  baseURL: SERVER_BASE,
+  timeout: 60000,
+  headers: {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  },
+});
 
 export const askRag = async (
   query,
-  context_id = "alian_default",
+  context_id = "",
   prompt_settings = null,
 ) => {
   const payload = { query, context_id };
   if (prompt_settings) payload.prompt_settings = prompt_settings;
 
-  const response = await apiClient.post("/ask", payload);
+  const response = await serverClient.post("/chat", payload);
   if (!response?.data) {
     throw new Error("No response returned from the RAG service.");
   }
   if (response.data.success === false) {
     throw new Error(response.data.error || "RAG service rejected the inquiry.");
   }
-  return response.data;
+  return response.data.data ?? response.data;
 };
 
 export const pingHealth = async () => {

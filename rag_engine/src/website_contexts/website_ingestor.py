@@ -16,6 +16,7 @@ from src.website_contexts.discoverer import discover_internal_urls
 from src.website_contexts.website_manager import (
     create_website_workspace,
     embeddings_dir,
+    load_metadata,
     raw_dir,
     update_metadata,
 )
@@ -41,8 +42,10 @@ def ingest_website(seed_url: str, website_id: str, output_dir: Path) -> dict[str
         html_dir = raw_dir(site_path)
         html_dir.mkdir(parents=True, exist_ok=True)
         canonical_root = normalize_url(seed_url)
+        metadata = load_metadata(website_id) or {}
+        chunking = metadata.get("chunking") if isinstance(metadata, dict) else None
 
-        discovered = discover_internal_urls(seed_url, logs_dir=logs_dir)
+        discovered = discover_internal_urls(seed_url, logs_dir=logs_dir, language="en")
         if canonical_root not in discovered:
             discovered = [canonical_root] + discovered
         else:
@@ -73,6 +76,7 @@ def ingest_website(seed_url: str, website_id: str, output_dir: Path) -> dict[str
             input_dir=html_dir,
             workers=1,
             output_base_dir=site_path,
+            chunking=chunking if isinstance(chunking, dict) else None,
         )
 
         chunks_dir = site_path / "chunks"

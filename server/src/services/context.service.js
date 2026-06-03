@@ -2,10 +2,16 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { spawn, spawnSync } = require("child_process");
+const { deleteChatbotsByContext } = require("./chatbot.service");
 
 const RAG_ENGINE_DIR = path.resolve(__dirname, "../../../rag_engine");
 const RAG_WEBSITES_DIR = path.join(RAG_ENGINE_DIR, "websites");
 const REGISTRY_PATH = path.join(RAG_ENGINE_DIR, "context_registry.json");
+const DEFAULT_CHUNKING = Object.freeze({
+  maxChunkTokens: 120,
+  minChunkTokens: 30,
+  chunkOverlapTokens: 25,
+});
 
 const READY = "ready";
 const INGESTING = "ingesting";
@@ -88,21 +94,13 @@ function _readRegistry() {
   if (!fs.existsSync(REGISTRY_PATH)) {
     return {
       version: 1,
-      contexts: [
-        {
-          id: "alian_default",
-          name: "Alian Software",
-          seed_url: "",
-          status: READY,
-          path: "data/indexes/chroma",
-          is_default: true,
-          is_deletable: false,
-        },
-      ],
+      contexts: [],
     };
   }
   try {
-    return JSON.parse(fs.readFileSync(REGISTRY_PATH, "utf8"));
+    const parsed = JSON.parse(fs.readFileSync(REGISTRY_PATH, "utf8"));
+    parsed.contexts = Array.isArray(parsed.contexts) ? parsed.contexts : [];
+    return parsed;
   } catch {
     return { version: 1, contexts: [] };
   }
@@ -122,7 +120,8 @@ function _mapEntry(entry) {
     status,
     path: entry.path || "",
     isDefault: Boolean(entry.is_default),
-    isDeletable: entry.is_deletable !== false && entry.id !== "alian_default",
+    isDeletable: entry.is_deletable !== false,
+    chunking: _normalizeChunkingConfig(entry.chunking, DEFAULT_CHUNKING),
   };
 }
 
@@ -154,6 +153,34 @@ function _isLocalOrPrivateHostname(hostname) {
   return false;
 }
 
+function _coerceInt(value, fallback) {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function _normalizeChunkingConfig(chunking, fallback = DEFAULT_CHUNKING) {
+  const base = fallback || DEFAULT_CHUNKING;
+  const maxChunkTokens = Math.max(100, _coerceInt(chunking?.maxChunkTokens, base.maxChunkTokens));
+  let minChunkTokens = Math.max(20, _coerceInt(chunking?.minChunkTokens, base.minChunkTokens));
+  let chunkOverlapTokens = Math.max(0, _coerceInt(chunking?.chunkOverlapTokens, base.chunkOverlapTokens));
+
+  if (minChunkTokens >= maxChunkTokens) {
+    minChunkTokens = Math.max(20, maxChunkTokens - 1);
+  }
+  if (chunkOverlapTokens >= maxChunkTokens) {
+    chunkOverlapTokens = Math.max(0, maxChunkTokens - 1);
+  }
+
+  return {
+    maxChunkTokens,
+    minChunkTokens,
+    chunkOverlapTokens,
+  };
+}
+
 function _spawnDetached(args, logPath) {
   fs.mkdirSync(path.dirname(logPath), { recursive: true });
   const child = spawn(
@@ -164,7 +191,7 @@ function _spawnDetached(args, logPath) {
   child.unref();
 }
 
-function createContext(url) {
+function createContext(url, options = {}) {
   ensureWebsitesDir();
 
   let parsed;
@@ -198,6 +225,7 @@ function createContext(url) {
   const id = `${safe}_${suffix}`;
   const relPath = path.posix.join("websites", id);
   const ctxDir = path.join(RAG_WEBSITES_DIR, id);
+  const chunking = _normalizeChunkingConfig(options.chunking, DEFAULT_CHUNKING);
 
   fs.mkdirSync(ctxDir, { recursive: true });
   for (const sub of ["raw", "chunks", "embeddings", "logs"]) {
@@ -211,6 +239,7 @@ function createContext(url) {
     seed_url: url,
     status: INGESTING,
     is_deletable: true,
+    chunking,
     created_at: new Date().toISOString(),
   };
   fs.writeFileSync(
@@ -229,6 +258,7 @@ function createContext(url) {
     path: relPath.replace(/\\/g, "/"),
     is_default: false,
     is_deletable: true,
+    chunking,
   });
   _writeRegistry(registry);
 
@@ -242,9 +272,13 @@ function createContext(url) {
   return { contextId: id, status: INGESTING };
 }
 
-function getContextStatus(contextId) {
-  if (contextId === "alian_default") return { status: READY, logPreview: null };
+function getContextDefaults() {
+  return {
+    chunking: { ...DEFAULT_CHUNKING },
+  };
+}
 
+function getContextStatus(contextId) {
   const entry = listContexts().find((ctx) => ctx.id === contextId);
   if (!entry) return null;
 
@@ -281,12 +315,6 @@ function _updateRegistryStatus(contextId, status) {
 
 function deleteContext(contextId) {
   ensureWebsitesDir();
-  if (contextId === "alian_default") {
-    const error = new Error("Cannot delete default context");
-    error.status = 400;
-    throw error;
-  }
-
   const ctxDir = path.join(RAG_WEBSITES_DIR, contextId);
   const resolved = path.resolve(ctxDir);
   const websitesRoot = path.resolve(RAG_WEBSITES_DIR);
@@ -316,6 +344,12 @@ function deleteContext(contextId) {
   const logsDir = path.join(ctxDir, "logs");
   fs.mkdirSync(logsDir, { recursive: true });
   const logPath = path.join(logsDir, "cleanup.log");
+
+  try {
+    deleteChatbotsByContext(contextId);
+  } catch {
+    // Best-effort: context cleanup should continue even if chatbot cleanup fails.
+  }
 
   try {
     const sync = spawnSync(
@@ -351,4 +385,5 @@ module.exports = {
   createContext,
   deleteContext,
   getContextStatus,
+  getContextDefaults,
 };

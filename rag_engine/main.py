@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 from src.config.logging_config import configure_logging
-from src.config.settings import ensure_directories, settings
+from src.config.settings import settings
 from src.ingestion.crawler import crawl_urls, read_urls
 from src.ingestion.sitemap import filter_urls_by_language, parse_and_save_sitemap, save_urls
 from src.evaluation.benchmark import benchmark_results_to_json, run_embedding_benchmark
@@ -135,8 +135,6 @@ def main() -> None:
         help="Number of search results to return for --query.",
     )
     args = parser.parse_args()
-
-    ensure_directories()
 
     if args.filter_existing_urls:
         if not args.language:
@@ -278,7 +276,7 @@ def main() -> None:
 
     print("Website RAG project initialized.")
     print(f"Base directory: {settings.BASE_DIR}")
-    print(f"Raw data directory: {settings.RAW_DATA_DIR}")
+    print(f"Shared workspace directory: {settings.DATA_DIR}")
 
 
 def _warmup_reranker() -> None:

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import contextApi from "../services/context";
 
 export const useContextStore = create((set, get) => ({
-  selectedContext: "alian_default",
+  selectedContext: "",
   contexts: [],
   loading: false,
   error: null,
@@ -18,14 +18,8 @@ export const useContextStore = create((set, get) => ({
       );
       set((state) => {
         let selectedContext = state.selectedContext;
-        if (
-          selectedContext === "all_ready" ||
-          !ready.some((c) => c.id === selectedContext)
-        ) {
-          selectedContext =
-            ready.find((c) => c.id === "alian_default")?.id ||
-            ready[0]?.id ||
-            "alian_default";
+        if (!ready.some((c) => c.id === selectedContext)) {
+          selectedContext = ready[0]?.id || "";
         }
         return { contexts, loading: false, selectedContext };
       });
@@ -46,6 +40,7 @@ export const useContextStore = create((set, get) => ({
         isDeletable: true,
         status: data.status || "ingesting",
         seed_url: url,
+        chunking: data.chunking || options?.chunking || null,
       };
       set((state) => ({
         contexts: [...(state.contexts || []), newContext],
@@ -93,10 +88,7 @@ export const useContextStore = create((set, get) => ({
       await contextApi.deleteContext(id);
       set((state) => ({
         contexts: (state.contexts || []).filter((c) => c.id !== id),
-        selectedContext:
-          state.selectedContext === id
-            ? "alian_default"
-            : state.selectedContext,
+        selectedContext: state.selectedContext === id ? "" : state.selectedContext,
         loading: false,
       }));
     } catch (err) {

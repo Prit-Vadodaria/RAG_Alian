@@ -35,7 +35,11 @@ class SearchResult:
     distance: float | None
 
 
-def load_chunk_records(chunks_dir: Path = CHUNKS_DIR) -> list[ChunkRecord]:
+def load_chunk_records(
+    chunks_dir: Path = CHUNKS_DIR,
+    metadata_overrides: dict[str, str | int | float | bool] | None = None,
+    chunk_id_prefix: str = "",
+) -> list[ChunkRecord]:
     records: list[ChunkRecord] = []
     for chunk_file in sorted(chunks_dir.glob("*.chunks.json")):
         chunks = json.loads(chunk_file.read_text(encoding="utf-8"))
@@ -45,10 +49,15 @@ def load_chunk_records(chunks_dir: Path = CHUNKS_DIR) -> list[ChunkRecord]:
             if not isinstance(chunk, dict):
                 continue
             chunk_id = str(chunk.get("chunk_id", "")).strip()
+            if chunk_id_prefix:
+                chunk_id = f"{chunk_id_prefix}:{chunk_id}"
             content = str(chunk.get("content", "")).strip()
             if not chunk_id or not content:
                 continue
-            records.append(ChunkRecord(chunk_id=chunk_id, content=content, metadata=_metadata_for_chunk(chunk, chunk_file)))
+            metadata = _metadata_for_chunk(chunk, chunk_file)
+            if metadata_overrides:
+                metadata.update({key: value for key, value in metadata_overrides.items() if value not in ("", None)})
+            records.append(ChunkRecord(chunk_id=chunk_id, content=content, metadata=metadata))
     return records
 
 
@@ -59,8 +68,14 @@ def index_exported_chunks(
     collection_name: str = CHROMA_COLLECTION,
     embedder: Embedder | None = None,
     batch_size: int = 64,
+    metadata_overrides: dict[str, str | int | float | bool] | None = None,
+    chunk_id_prefix: str = "",
 ) -> IndexSummary:
-    records = load_chunk_records(chunks_dir)
+    records = load_chunk_records(
+        chunks_dir,
+        metadata_overrides=metadata_overrides,
+        chunk_id_prefix=chunk_id_prefix,
+    )
     store = ChromaStore(chroma_dir=chroma_dir, collection_name=collection_name)
     active_embedder = embedder or SentenceTransformerEmbedder(EMBEDDING_MODEL)
     indexed = store.upsert_chunks(records, active_embedder, batch_size=batch_size)
@@ -103,14 +118,30 @@ class ChromaStore:
             indexed += len(batch)
         return indexed
 
-    def search(self, query: str, embedder: Embedder, *, top_k: int = 5) -> list[SearchResult]:
+    def search(
+        self,
+        query: str,
+        embedder: Embedder,
+        *,
+        top_k: int = 5,
+        where: dict[str, Any] | None = None,
+    ) -> list[SearchResult]:
         query_embedding = embedder.embed_query(query)
-        raw = self.collection.query(
-            query_embeddings=[query_embedding],
-            n_results=top_k,
-            include=["documents", "metadatas", "distances"],
-        )
+        query_kwargs: dict[str, Any] = {
+            "query_embeddings": [query_embedding],
+            "n_results": top_k,
+            "include": ["documents", "metadatas", "distances"],
+        }
+        if where:
+            query_kwargs["where"] = where
+        raw = self.collection.query(**query_kwargs)
         return _parse_query_results(raw)
+
+    def delete_where(self, where: dict[str, Any]) -> None:
+        try:
+            self.collection.delete(where=where)
+        except Exception:
+            return
 
 
 def search_index(
@@ -121,10 +152,11 @@ def search_index(
     embedder: Embedder | None = None,
     top_k: int = 5,
     max_distance: float | None = MAX_SEARCH_DISTANCE,
+    where: dict[str, Any] | None = None,
 ) -> list[SearchResult]:
     store = ChromaStore(chroma_dir=chroma_dir, collection_name=collection_name)
     active_embedder = embedder or SentenceTransformerEmbedder(EMBEDDING_MODEL)
-    results = store.search(query, active_embedder, top_k=top_k)
+    results = _search_with_variants(store, query, active_embedder, top_k=top_k, where=where)
     return filter_search_results(results, query=query, max_distance=max_distance)
 
 
@@ -145,7 +177,23 @@ def filter_search_results(
 
 def _metadata_for_chunk(chunk: dict[str, Any], chunk_file: Path) -> dict[str, str | int | float | bool]:
     metadata: dict[str, str | int | float | bool] = {"chunk_file": str(chunk_file)}
-    for key in ("url", "title", "section", "source_section", "content_type", "parent_chunk_id", "split_index", "split_count", "source_file", "document_hash", "token_count"):
+    for key in (
+        "url",
+        "title",
+        "section",
+        "source_section",
+        "content_type",
+        "parent_chunk_id",
+        "split_index",
+        "split_count",
+        "source_file",
+        "document_hash",
+        "token_count",
+        "chatbot_id",
+        "namespace",
+        "context_id",
+        "tenant_id",
+    ):
         value = chunk.get(key)
         if isinstance(value, (str, int, float, bool)) and value != "":
             metadata[key] = value
@@ -179,7 +227,69 @@ def _parse_query_results(raw: dict[str, Any]) -> list[SearchResult]:
     return results
 
 
+def _search_with_variants(
+    store: ChromaStore,
+    query: str,
+    embedder: Embedder,
+    *,
+    top_k: int,
+    where: dict[str, Any] | None = None,
+) -> list[SearchResult]:
+    variants = _query_variants(query)
+    merged: dict[str, SearchResult] = {}
+
+    for variant in variants:
+        variant_results = store.search(variant, embedder, top_k=top_k, where=where)
+        for result in variant_results:
+            existing = merged.get(result.chunk_id)
+            if existing is None:
+                merged[result.chunk_id] = result
+                continue
+            current_distance = existing.distance if existing.distance is not None else 1e9
+            next_distance = result.distance if result.distance is not None else 1e9
+            if next_distance < current_distance:
+                merged[result.chunk_id] = result
+
+    return sorted(merged.values(), key=lambda item: item.distance if item.distance is not None else 1e9)[:top_k]
+
+
 QUERY_STOPWORDS = {"a", "an", "are", "about", "based", "do", "does", "for", "from", "give", "is", "me", "of", "on", "tell", "the", "to", "what", "who"}
+
+
+def _query_variants(query: str) -> list[str]:
+    text = query.strip()
+    if not text:
+        return []
+
+    variants = [text]
+    for phrase in _extract_entity_phrases(text):
+        normalized = phrase.strip()
+        if not normalized:
+            continue
+        variants.append(f"Find information about {normalized}")
+        variants.append(f"{normalized} profile")
+        variants.append(f"{normalized} engineer profile")
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for variant in variants:
+        normalized = variant.strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(normalized)
+    return deduped
+
+
+def _extract_entity_phrases(text: str) -> list[str]:
+    proper_nouns = re.findall(r"\b[A-Z][\w-]*(?:\s+[A-Z][\w-]*)+\b", text)
+    if proper_nouns:
+        return proper_nouns[:2]
+
+    terms = _meaningful_terms(text)
+    if len(terms) >= 2:
+        return [" ".join(terms[: min(4, len(terms))])]
+    return []
 
 
 def _has_exact_query_phrase(query: str, content: str) -> bool:

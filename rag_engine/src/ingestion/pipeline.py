@@ -7,6 +7,7 @@ structured document JSON, and retrieval-ready chunk JSON files.
 from __future__ import annotations
 
 import json
+from functools import partial
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -14,7 +15,6 @@ from pathlib import Path
 from src.chunking.chunker import build_chunks
 from src.config.settings import (
     CLEANED_MARKDOWN_DIR,
-    LEGACY_RAW_HTML_DIR,
     LOGS_DIR,
     RAW_HTML_DIR,
     STRUCTURED_DOCS_DIR,
@@ -72,15 +72,11 @@ class ProcessingSummary:
 
 
 def discover_raw_html_files(input_dir: Path | None = None) -> list[Path]:
-    """Find raw HTML files, preferring the canonical Phase 3 input directory."""
+    """Find raw HTML files in the canonical Phase 3 input directory."""
     if input_dir is not None:
         return sorted(input_dir.glob("*.html"))
 
-    canonical = sorted(RAW_HTML_DIR.glob("*.html"))
-    if canonical:
-        return canonical
-
-    return sorted(LEGACY_RAW_HTML_DIR.glob("*.html"))
+    return sorted(RAW_HTML_DIR.glob("*.html"))
 
 
 def process_raw_html_directory(
@@ -89,6 +85,7 @@ def process_raw_html_directory(
     limit: int | None = None,
     workers: int = 1,
     output_base_dir: Path | None = None,
+    chunking: dict[str, object] | None = None,
 ) -> ProcessingSummary:
     """Process raw HTML files into markdown, document JSON, and chunk JSON."""
     ensure_directories()
@@ -102,8 +99,9 @@ def process_raw_html_directory(
     logger = get_logger("html_processor", logs_dir / "html_processing.log")
     files = discover_raw_html_files(input_dir)
     selected_files = files[:limit] if limit is not None else files
+    resolved_chunking = _resolve_chunking_config(chunking)
 
-    processed = _process_files(selected_files, workers)
+    processed = _process_files(selected_files, workers, chunking=resolved_chunking)
     seen_hashes: set[str] = set()
     seen_fingerprints: list[set[str]] = []
     seen_chunk_hashes: set[str] = set()
@@ -142,7 +140,7 @@ def process_raw_html_directory(
 
             unique_chunks = []
             for chunk in result.chunks:
-                chunk_hash = content_hash(str(chunk.get("content", "")))
+                chunk_hash = content_hash(str(chunk.get("raw_content") or chunk.get("content", "")))
                 if chunk_hash in seen_chunk_hashes:
                     continue
                 seen_chunk_hashes.add(chunk_hash)
@@ -168,6 +166,11 @@ def process_raw_html_directory(
 
 
 def process_html_file(source_path: Path) -> ProcessedDocument:
+    """Process one raw HTML file into a structured document and chunks."""
+    return _process_html_file(source_path, chunking=None)
+
+
+def _process_html_file(source_path: Path, *, chunking: dict[str, int] | None) -> ProcessedDocument:
     """Process one raw HTML file into a structured document and chunks."""
     try:
         raw_html = source_path.read_text(encoding="utf-8", errors="replace")
@@ -198,6 +201,9 @@ def process_html_file(source_path: Path) -> ProcessedDocument:
                 markdown,
                 metadata=metadata,
                 document_hash=document_hash,
+                max_tokens=chunking["max_tokens"] if chunking else None,
+                min_tokens=chunking["min_tokens"] if chunking else None,
+                overlap_tokens=chunking["overlap_tokens"] if chunking else None,
             )
         ]
 
@@ -206,13 +212,14 @@ def process_html_file(source_path: Path) -> ProcessedDocument:
         return ProcessedDocument(source_path=str(source_path), document=None, chunks=[], error=str(exc))
 
 
-def _process_files(files: list[Path], workers: int) -> list[ProcessedDocument]:
+def _process_files(files: list[Path], workers: int, *, chunking: dict[str, int]) -> list[ProcessedDocument]:
     if workers <= 1:
-        return [process_html_file(path) for path in files]
+        return [_process_html_file(path, chunking=chunking) for path in files]
 
     results: list[ProcessedDocument] = []
     with ProcessPoolExecutor(max_workers=workers) as executor:
-        futures = {executor.submit(process_html_file, path): path for path in files}
+        worker = partial(_process_html_file, chunking=chunking)
+        futures = {executor.submit(worker, path): path for path in files}
         for future in as_completed(futures):
             results.append(future.result())
 
@@ -238,3 +245,32 @@ def _export_chunks(document_id: str, chunks: list[dict[str, object]], *, chunks_
     chunk_path = chunks_dir / f"{document_id}.chunks.json"
     chunk_path.write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
 
+
+def _resolve_chunking_config(chunking: dict[str, object] | None) -> dict[str, int]:
+    from src.config.settings import CHUNK_OVERLAP_TOKENS, MAX_CHUNK_TOKENS, MIN_CHUNK_TOKENS
+
+    config = dict(chunking or {})
+
+    def _coerce(name: str, default: int) -> int:
+        value = config.get(name)
+        if isinstance(value, bool):
+            value = None
+        try:
+            return int(value) if value is not None and str(value).strip() != "" else default
+        except (TypeError, ValueError):
+            return default
+
+    max_tokens = max(100, _coerce("maxChunkTokens", MAX_CHUNK_TOKENS))
+    min_tokens = max(20, _coerce("minChunkTokens", MIN_CHUNK_TOKENS))
+    overlap_tokens = max(0, _coerce("chunkOverlapTokens", CHUNK_OVERLAP_TOKENS))
+
+    if min_tokens >= max_tokens:
+        min_tokens = max(20, max_tokens - 1)
+    if overlap_tokens >= max_tokens:
+        overlap_tokens = max(0, max_tokens - 1)
+
+    return {
+        "max_tokens": max_tokens,
+        "min_tokens": min_tokens,
+        "overlap_tokens": overlap_tokens,
+    }

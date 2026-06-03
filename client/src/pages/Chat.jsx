@@ -94,6 +94,11 @@ function Chat() {
 
   const handleSend = async (prompt) => {
     if (!activeChat) return;
+    const selectedContext = useContextStore.getState().selectedContext || "";
+    if (!selectedContext) {
+      showToast("Please select a website context first.", "error");
+      return;
+    }
 
     const userMessage = createMessage({ role: "user", content: prompt });
     addMessage(activeChat.id, userMessage);
@@ -111,8 +116,6 @@ function Chat() {
     }, 1000);
 
     try {
-      const selectedContext =
-        useContextStore.getState().selectedContext || "alian_default";
       const promptSettings = usePromptSettingsStore.getState().settings;
       const response = await askRag(prompt, selectedContext, promptSettings);
       const assistantMessage = createMessage({

@@ -1,10 +1,10 @@
 const axios = require("axios");
 
-const { FASTAPI_BASE_URL } = require("../config/env");
+const { FASTAPI_BASE_URL, FASTAPI_TIMEOUT_MS } = require("../config/env");
 
 const apiClient = axios.create({
   baseURL: FASTAPI_BASE_URL,
-  timeout: 10000,
+  timeout: FASTAPI_TIMEOUT_MS,
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",

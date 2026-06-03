@@ -18,9 +18,6 @@ def _is_safe_website_path(target: Path) -> bool:
 
 
 def delete_website_context(context_id: str) -> bool:
-    if context_id == "alian_default":
-        raise ValueError("Cannot delete default context")
-
     site_dir = website_path(context_id)
     if not _is_safe_website_path(site_dir):
         raise ValueError(f"Refusing to delete unsafe path: {site_dir}")

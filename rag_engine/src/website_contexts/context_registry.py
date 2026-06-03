@@ -19,17 +19,7 @@ BLOCKED_RETRIEVAL_STATUSES = frozenset({"ingesting", "deleting", "failed"})
 def _default_registry() -> dict[str, Any]:
     return {
         "version": 1,
-        "contexts": [
-            {
-                "id": "alian_default",
-                "name": "Alian Software",
-                "seed_url": "",
-                "status": "ready",
-                "path": "data/indexes/chroma",
-                "is_default": True,
-                "is_deletable": False,
-            }
-        ],
+        "contexts": [],
     }
 
 
@@ -87,8 +77,6 @@ def update_context_status(context_id: str, status: str, **extra: Any) -> dict[st
 
 
 def remove_context(context_id: str) -> bool:
-    if context_id == "alian_default":
-        return False
     data = load_registry()
     before = len(data.get("contexts", []))
     data["contexts"] = [item for item in data.get("contexts", []) if item.get("id") != context_id]
@@ -110,8 +98,6 @@ def find_by_seed_url(seed_url: str) -> dict[str, Any] | None:
 def list_ready_website_contexts() -> list[dict[str, Any]]:
     ready: list[dict[str, Any]] = []
     for entry in list_contexts():
-        if entry.get("id") == "alian_default":
-            continue
         if entry.get("status") not in READY_STATUSES:
             continue
         ready.append(entry)
@@ -131,10 +117,6 @@ def resolve_context_path(entry: dict[str, Any]) -> Path:
 
 
 def embeddings_dir_for(entry: dict[str, Any]) -> Path:
-    if entry.get("id") == "alian_default":
-        from src.config.settings import CHROMA_DIR
-
-        return Path(CHROMA_DIR)
     site_path = resolve_context_path(entry)
     legacy = site_path / "chroma"
     preferred = site_path / "embeddings"

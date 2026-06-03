@@ -28,6 +28,7 @@ class TextChunk:
     parent_chunk_id: str = ""
     split_index: int = 0
     split_count: int = 1
+    raw_content: str = ""
 
     def to_dict(self) -> dict[str, object]:
         """Serialize a chunk for JSON export."""
@@ -135,7 +136,8 @@ def build_chunks(
             return
         if token_count < min_tokens and chunks:
             previous = chunks[-1]
-            merged_content = f"{previous.content}\n\n{content}".strip()
+            previous_raw_content = previous.raw_content or previous.content
+            merged_content = f"{previous_raw_content}\n\n{content}".strip()
             merged_token_count = counter.count(merged_content)
             if merged_token_count <= max_tokens:
                 chunks.pop()
@@ -152,13 +154,16 @@ def build_chunks(
             content_type = _dominant_content_type(current_blocks)
             parent_chunk_id = _parent_chunk_id(document_hash, current_blocks)
             split_index, split_count = _split_position(current_blocks)
+            raw_content = content
+            enriched_content = _enrich_content(content, metadata, heading_path, content_type)
+            token_count = counter.count(enriched_content)
             chunks.append(
                 TextChunk(
                     chunk_id=chunk_id,
                     url=str(metadata.get("url", "")),
                     title=str(metadata.get("title", "")),
                     section=section,
-                    content=content,
+                    content=enriched_content,
                     token_count=token_count,
                     source_file=str(metadata.get("source_file", "")),
                     heading_path=heading_path,
@@ -168,6 +173,7 @@ def build_chunks(
                     parent_chunk_id=parent_chunk_id,
                     split_index=split_index,
                     split_count=split_count,
+                    raw_content=raw_content,
                 )
             )
 
@@ -441,4 +447,51 @@ def _looks_like_table(text: str) -> bool:
 
 def _is_table_separator(line: str) -> bool:
     return bool(re.match(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$", line.strip()))
+
+
+def _enrich_content(
+    content: str,
+    metadata: dict[str, object],
+    heading_path: list[str],
+    content_type: str,
+) -> str:
+    """Add lightweight semantic labels to help retrieval stay aligned with structure."""
+    page = str(metadata.get("title") or metadata.get("url") or "").strip()
+    section = heading_path[0] if len(heading_path) >= 1 else str(metadata.get("title", "")).strip()
+    subsection = heading_path[1] if len(heading_path) >= 2 else ""
+    entity_type = _infer_entity_type(content_type, heading_path, content)
+
+    parts: list[str] = []
+    if page:
+        parts.append(f"Page: {page}")
+    if section:
+        parts.append(f"Section: {section}")
+    if subsection:
+        parts.append(f"Subsection: {subsection}")
+    if entity_type:
+        parts.append(f"Entity Type: {entity_type}")
+    parts.append("Content:")
+    parts.append(content.strip())
+    return "\n".join(parts)
+
+
+def _infer_entity_type(content_type: str, heading_path: list[str], content: str) -> str:
+    heading_text = " ".join(heading_path).lower()
+    content_text = content.lower()
+
+    if "faq" in heading_text or "faqs" in heading_text or "question" in content_text:
+        return "FAQ"
+    if any(keyword in heading_text for keyword in ("pricing", "plans", "packages", "subscription")):
+        return "Pricing Card"
+    if any(keyword in heading_text for keyword in ("team", "people", "leadership", "about us")):
+        return "Team Member"
+    if any(keyword in heading_text for keyword in ("service", "services", "what we do", "solutions")):
+        return "Service Card"
+    if content_type == "table":
+        return "Structured Table"
+    if content_type == "list":
+        return "Structured List"
+    if content_type == "code":
+        return "Code Block"
+    return content_type.replace("_", " ").title() if content_type and content_type != "text" else "Text Block"
 

@@ -179,7 +179,7 @@ The code reads configuration from environment variables via `python-dotenv`.
 | `GOOGLE_MODEL` | Gemini model name | `gemini-3.1-flash-lite` |
 | `GOOGLE_MAX_RETRIES` | Maximum retry attempts for Gemini 429 responses | `5` |
 | `GOOGLE_RETRY_BACKOFF` | Base backoff multiplier in seconds for Gemini retries | `2` |
-| `VECTOR_DB_PATH` | Common deployment alias for the vector DB location; map this to `CHROMA_DIR` in your wrapper or deployment config | `data/indexes/chroma` |
+| `VECTOR_DB_PATH` | Common deployment alias for the vector DB location; map this to `CHROMA_DIR` in your wrapper or deployment config | `.workspace/indexes/chroma` |
 | `RERANK_MODEL` | Common deployment alias for the reranker model; map this to `RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` |
 | `LOG_LEVEL` | Logging level used by your launcher or wrapper around `configure_logging()` | `INFO` |
 
@@ -190,7 +190,7 @@ GOOGLE_API_KEY=
 GOOGLE_MODEL=gemini-3.1-flash-lite
 GOOGLE_MAX_RETRIES=5
 GOOGLE_RETRY_BACKOFF=2
-CHROMA_DIR=data/indexes/chroma
+CHROMA_DIR=.workspace/indexes/chroma
 RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
 RERANKER_BACKEND=auto
 LOG_LEVEL=INFO

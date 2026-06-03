@@ -46,7 +46,13 @@ class RetrievalPipeline:
         self.last_reranker_status = "unknown"
         self.last_reranker_backend = "unknown"
 
-    def retrieve(self, query: str, context_id: str = "alian_default") -> tuple[list[SearchResult], list[RerankedResult]]:
+    def retrieve(
+        self,
+        query: str,
+        context_id: str = "",
+        chatbot_id: str | None = None,
+        namespace: str | None = None,
+    ) -> tuple[list[SearchResult], list[RerankedResult]]:
         """Run query embedding, vector retrieval, reranking, and final truncation."""
         if not query.strip():
             raise ValueError("Query must be non-empty.")
@@ -59,7 +65,12 @@ class RetrievalPipeline:
             ENABLE_RERANKER,
             getattr(self.reranker, "backend", "unknown"),
         )
-        vector_results = self.retriever.retrieve(query, context_id=context_id)
+        vector_results = self.retriever.retrieve(
+            query,
+            context_id=context_id,
+            chatbot_id=chatbot_id,
+            namespace=namespace,
+        )
         logger.info("Retrieved %s vector documents (top_k=%s)", len(vector_results), self.vector_top_k)
         for idx, result in enumerate(vector_results, start=1):
             logger.debug(
@@ -135,10 +146,23 @@ class RetrievalPipeline:
         ]
 
 
-def retrieve_with_rerank(query: str, *, vector_top_k: int = VECTOR_TOP_K, final_top_k: int = FINAL_TOP_K) -> list[SearchResult]:
+def retrieve_with_rerank(
+    query: str,
+    *,
+    vector_top_k: int = VECTOR_TOP_K,
+    final_top_k: int = FINAL_TOP_K,
+    context_id: str = "",
+    chatbot_id: str | None = None,
+    namespace: str | None = None,
+) -> list[SearchResult]:
     """Compatibility adapter returning SearchResult list after reranking."""
     pipeline = RetrievalPipeline(vector_top_k=vector_top_k, final_top_k=final_top_k)
-    _, reranked = pipeline.retrieve(query)
+    _, reranked = pipeline.retrieve(
+        query,
+        context_id=context_id,
+        chatbot_id=chatbot_id,
+        namespace=namespace,
+    )
     return [
         SearchResult(
             chunk_id=item.chunk_id,

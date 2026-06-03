@@ -13,12 +13,21 @@ const getContexts = async (req, res, next) => {
 
 const createContext = async (req, res, next) => {
   try {
-    const { url } = req.body || {};
+    const { url, chunking } = req.body || {};
     if (typeof url !== "string" || !url.trim()) {
       return res.status(400).json(errorResponse("'url' is required."));
     }
-    const result = await contextService.createContext(url.trim());
+    const result = await contextService.createContext(url.trim(), { chunking });
     return res.status(202).json(successResponse(result));
+  } catch (err) {
+    return next(err);
+  }
+};
+
+const getContextDefaults = async (req, res, next) => {
+  try {
+    const defaults = await contextService.getContextDefaults();
+    return res.json(successResponse(defaults));
   } catch (err) {
     return next(err);
   }
@@ -58,4 +67,5 @@ module.exports = {
   createContext,
   deleteContext,
   getContextStatus,
+  getContextDefaults,
 };

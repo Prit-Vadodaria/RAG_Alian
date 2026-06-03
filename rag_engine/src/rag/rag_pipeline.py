@@ -66,13 +66,22 @@ class RagPipeline:
     def run(
         self,
         query: str,
-        context_id: str = "alian_default",
+        context_id: str = "",
+        chatbot_id: str | None = None,
+        namespace: str | None = None,
+        visitor_id: str | None = None,
+        origin: str | None = None,
         prompt_settings: dict[str, object] | None = None,
     ) -> RagResult:
         pipeline_start = time.perf_counter()
         retrieval_start = time.perf_counter()
 
-        vector_results, reranked = self.retrieval_pipeline.retrieve(query, context_id=context_id)
+        vector_results, reranked = self.retrieval_pipeline.retrieve(
+            query,
+            context_id=context_id,
+            chatbot_id=chatbot_id,
+            namespace=namespace,
+        )
         retrieval_latency_ms = (time.perf_counter() - retrieval_start) * 1000
         final_chunks = reranked[: self.final_top_k]
 

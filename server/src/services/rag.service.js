@@ -1,10 +1,11 @@
 const apiClient = require("./api.service");
 
-const askRag = async (query, contextId = "alian_default") => {
+const askRag = async (query, contextId = "", options = {}) => {
   try {
     const response = await apiClient.post("/ask", {
       query,
       context_id: contextId,
+      ...options,
     });
 
     if (!response || !response.data) {

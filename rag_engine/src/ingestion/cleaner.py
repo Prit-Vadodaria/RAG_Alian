@@ -103,28 +103,37 @@ def _extract_with_selectolax(html: str) -> str | None:
         return None
 
     tree = HTMLParser(html)
-    for selector in REMOVE_SELECTORS:
-        for node in tree.css(selector):
-            node.decompose()
-
     for selector in CONTENT_SELECTORS:
         node = tree.css_first(selector)
         if node and node.text(strip=True):
-            return node.html
+            candidate = HTMLParser(node.html)
+            for remove_selector in REMOVE_SELECTORS:
+                for remove_node in candidate.css(remove_selector):
+                    remove_node.decompose()
+            body = candidate.body
+            return body.html if body else candidate.html
 
     body = tree.body
+    if body:
+        candidate = HTMLParser(body.html)
+        for selector in REMOVE_SELECTORS:
+            for node in candidate.css(selector):
+                node.decompose()
+        body = candidate.body
+        return body.html if body else candidate.html
     return body.html if body else None
 
 
 def _extract_with_beautifulsoup(html: str) -> str:
     """Fallback extraction preserving semantic HTML tags."""
-    soup = remove_boilerplate(parse_html(html))
-
     for selector in CONTENT_SELECTORS:
+        soup = parse_html(html)
         candidate = soup.select_one(selector)
         if candidate and len(candidate.get_text(" ", strip=True)) > 80:
-            return str(candidate)
+            candidate_soup = remove_boilerplate(parse_html(str(candidate)))
+            return str(candidate_soup)
 
+    soup = remove_boilerplate(parse_html(html))
     body = soup.body or soup
     return str(body)
 

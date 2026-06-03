@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   MessageSquare,
+  Bot,
   Cpu,
   SlidersHorizontal,
   Plus,
@@ -132,6 +133,19 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
                 >
                   <MessageSquare className="h-4 w-4" />
                   <span>Chat</span>
+                </NavLink>
+                <NavLink
+                  to="/chatbots"
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition ${
+                      isActive
+                        ? "border border-cyan-500 bg-zinc-950 text-cyan-200"
+                        : "text-zinc-400 hover:border hover:border-zinc-700 hover:text-zinc-200"
+                    }`
+                  }
+                >
+                  <Bot className="h-4 w-4" />
+                  <span>Chatbots</span>
                 </NavLink>
                 <NavLink
                   to="/system"

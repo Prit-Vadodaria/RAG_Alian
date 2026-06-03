@@ -11,7 +11,23 @@ class PromptSettingsSchema(BaseModel):
 class AskRequestSchema(BaseModel):
     query: str = Field(..., min_length=1, example="What is RAG?")
     context_id: str = Field(
-        "alian_default",
-        description="Retrieval scope: 'alian_default', a website id, or 'all_ready' to search every ready context",
+        "",
+        description="Retrieval scope: a website context id, or 'all_ready' to search every ready website context.",
+    )
+    chatbot_id: str | None = Field(
+        default=None,
+        description="Optional public chatbot identifier for multi-tenant scoping.",
+    )
+    namespace: str | None = Field(
+        default=None,
+        description="Optional retrieval namespace used for chatbot isolation.",
+    )
+    visitor_id: str | None = Field(
+        default=None,
+        description="Optional visitor identifier for public widget analytics.",
+    )
+    origin: str | None = Field(
+        default=None,
+        description="Optional request origin for domain validation and tracing.",
     )
     prompt_settings: PromptSettingsSchema | None = None

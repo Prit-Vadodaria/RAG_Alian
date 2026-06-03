@@ -2,23 +2,48 @@
   "version": 1,
   "contexts": [
     {
-      "id": "alian_default",
-      "name": "Alian Software",
-      "seed_url": "",
+      "id": "hansalpatel-tech_5cf3abc9",
+      "name": "hansalpatel.tech",
+      "seed_url": "https://hansalpatel.tech/",
       "status": "ready",
-      "path": "data/indexes/chroma",
-      "is_default": true,
-      "is_deletable": false
-    },
-    {
-      "id": "www-mbit-edu-in_68f49f44",
-      "name": "www.mbit.edu.in",
-      "seed_url": "https://www.mbit.edu.in/",
-      "status": "ready",
-      "path": "websites/www-mbit-edu-in_68f49f44",
+      "path": "websites/hansalpatel-tech_5cf3abc9",
       "is_default": false,
       "is_deletable": true,
-      "chunks_created": 501
+      "chunking": {
+        "maxChunkTokens": 100,
+        "minChunkTokens": 30,
+        "chunkOverlapTokens": 25
+      },
+      "chunks_created": 5
+    },
+    {
+      "id": "aliansoftware-com_9882f140",
+      "name": "aliansoftware.com",
+      "seed_url": "https://aliansoftware.com/en",
+      "status": "ready",
+      "path": "websites/aliansoftware-com_9882f140",
+      "is_default": false,
+      "is_deletable": true,
+      "chunking": {
+        "maxChunkTokens": 350,
+        "minChunkTokens": 80,
+        "chunkOverlapTokens": 60
+      },
+      "chunks_created": 751
+    },
+    {
+      "id": "minimalist-ae_792fa25f",
+      "name": "minimalist.ae",
+      "seed_url": "https://minimalist.ae/",
+      "status": "ingesting",
+      "path": "websites/minimalist-ae_792fa25f",
+      "is_default": false,
+      "is_deletable": true,
+      "chunking": {
+        "maxChunkTokens": 250,
+        "minChunkTokens": 80,
+        "chunkOverlapTokens": 50
+      }
     }
   ]
 }

@@ -45,6 +45,11 @@ export const getContexts = async () => {
   return res.data?.data || [];
 };
 
+export const getContextDefaults = async () => {
+  const res = await client.get("/contexts/defaults");
+  return res.data?.data || { chunking: {} };
+};
+
 export const createContext = async (url, options = {}) => {
   const payload = { url, ...options };
   const res = await client.post("/contexts", payload);
@@ -63,4 +68,10 @@ export const getContextStatus = async (contextId) => {
   return res.data?.data;
 };
 
-export default { getContexts, createContext, deleteContext, getContextStatus };
+export default {
+  getContexts,
+  getContextDefaults,
+  createContext,
+  deleteContext,
+  getContextStatus,
+};

@@ -76,10 +76,9 @@ def _env_optional_float(name: str) -> float | None:
 @dataclass(frozen=True)
 class Settings:
     BASE_DIR: Path = Path(__file__).resolve().parents[2]
-    DATA_DIR: Path = BASE_DIR / "data"
+    DATA_DIR: Path = BASE_DIR / ".workspace"
     RAW_DATA_DIR: Path = DATA_DIR / "raw"
     RAW_HTML_DIR: Path = RAW_DATA_DIR / "html"
-    LEGACY_RAW_HTML_DIR: Path = DATA_DIR / "raw_html"
     CLEANED_MARKDOWN_DIR: Path = DATA_DIR / "cleaned_markdown"
     STRUCTURED_DOCS_DIR: Path = DATA_DIR / "structured_docs"
     CHUNKS_DIR: Path = DATA_DIR / "chunks"
@@ -92,14 +91,18 @@ class Settings:
     CRAWL_DELAY_SECONDS: float = _env_float("CRAWL_DELAY_SECONDS", 0.0)
     RESPECT_ROBOTS_TXT: bool = _env_bool("RESPECT_ROBOTS_TXT", True)
     ALLOWED_CRAWL_DOMAINS: tuple[str, ...] = _env_csv("ALLOWED_CRAWL_DOMAINS")
-    MAX_CHUNK_TOKENS: int = _env_int("MAX_CHUNK_TOKENS", 125)
-    MIN_CHUNK_TOKENS: int = _env_int("MIN_CHUNK_TOKENS", 25)
+    MAX_CHUNK_TOKENS: int = _env_int("MAX_CHUNK_TOKENS", 120)
+    MIN_CHUNK_TOKENS: int = _env_int("MIN_CHUNK_TOKENS", 30)
     CHUNK_OVERLAP_TOKENS: int = _env_int("CHUNK_OVERLAP_TOKENS", _env_int("CHUNK_OVERLAP", 25))
     EMBEDDING_MODEL: str = _env_str("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
     EMBEDDING_BATCH_SIZE: int = _env_int("EMBEDDING_BATCH_SIZE", 32)
     HUGGINGFACE_CACHE_DIR: Path = BASE_DIR / _env_str("HUGGINGFACE_CACHE_DIR", ".hf_cache")
-    CHROMA_DIR: Path = BASE_DIR / _env_str("CHROMA_DIR", "data/indexes/chroma")
+    CHROMA_DIR: Path = BASE_DIR / _env_str("CHROMA_DIR", ".workspace/indexes/chroma")
     CHROMA_COLLECTION: str = _env_str("CHROMA_COLLECTION", "website_rag_bge_base_v1")
+    CHATBOT_CHROMA_COLLECTION: str = _env_str(
+        "CHATBOT_CHROMA_COLLECTION",
+        "chatbot_rag_bge_base_v1",
+    )
     MAX_SEARCH_DISTANCE: float = _env_float("MAX_SEARCH_DISTANCE", 1.15)
     RAG_CONTEXT_TOKENS: int = _env_int("RAG_CONTEXT_TOKENS", 2200)
     VECTOR_TOP_K: int = _env_int("VECTOR_TOP_K", 10)
@@ -118,7 +121,7 @@ class Settings:
     RERANKER_MODEL: str = _env_str("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
     RERANKER_USE_FP16: bool = _env_bool("RERANKER_USE_FP16", False)
     RERANKER_INIT_TIMEOUT_SECONDS: int = _env_int("RERANKER_INIT_TIMEOUT_SECONDS", 30)
-    DISCOVERY_MAX_PAGES: int = _env_int("DISCOVERY_MAX_PAGES", 100)
+    DISCOVERY_MAX_PAGES: int = _env_int("DISCOVERY_MAX_PAGES", 250)
     DISCOVERY_MAX_DEPTH: int = _env_int("DISCOVERY_MAX_DEPTH", 2)
 
 
@@ -128,7 +131,6 @@ BASE_DIR = settings.BASE_DIR
 DATA_DIR = settings.DATA_DIR
 RAW_DATA_DIR = settings.RAW_DATA_DIR
 RAW_HTML_DIR = settings.RAW_HTML_DIR
-LEGACY_RAW_HTML_DIR = settings.LEGACY_RAW_HTML_DIR
 CLEANED_MARKDOWN_DIR = settings.CLEANED_MARKDOWN_DIR
 STRUCTURED_DOCS_DIR = settings.STRUCTURED_DOCS_DIR
 CHUNKS_DIR = settings.CHUNKS_DIR
@@ -149,6 +151,7 @@ EMBEDDING_BATCH_SIZE = settings.EMBEDDING_BATCH_SIZE
 HUGGINGFACE_CACHE_DIR = settings.HUGGINGFACE_CACHE_DIR
 CHROMA_DIR = settings.CHROMA_DIR
 CHROMA_COLLECTION = settings.CHROMA_COLLECTION
+CHATBOT_CHROMA_COLLECTION = settings.CHATBOT_CHROMA_COLLECTION
 MAX_SEARCH_DISTANCE = settings.MAX_SEARCH_DISTANCE
 RAG_CONTEXT_TOKENS = settings.RAG_CONTEXT_TOKENS
 VECTOR_TOP_K = settings.VECTOR_TOP_K
@@ -175,7 +178,6 @@ def ensure_directories() -> None:
     for directory in (
         RAW_DATA_DIR,
         RAW_HTML_DIR,
-        LEGACY_RAW_HTML_DIR,
         CLEANED_MARKDOWN_DIR,
         STRUCTURED_DOCS_DIR,
         CHUNKS_DIR,

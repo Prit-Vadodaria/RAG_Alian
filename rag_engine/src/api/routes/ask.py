@@ -12,5 +12,9 @@ async def ask_route(request: AskRequestSchema) -> AskResponseSchema:
     return ask_query(
         request.query,
         context_id=request.context_id,
+        chatbot_id=request.chatbot_id,
+        namespace=request.namespace,
+        visitor_id=request.visitor_id,
+        origin=request.origin,
         prompt_settings=request.prompt_settings.model_dump() if request.prompt_settings else None,
     )

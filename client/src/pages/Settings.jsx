@@ -71,6 +71,7 @@ function Settings() {
     setIsEditing(true);
   };
 
+
   return (
     <div className="h-full min-h-0 overflow-y-auto pr-1 space-y-6">
       <div className="rounded-[2rem] border border-zinc-800 bg-[#111317] p-6 shadow-[0_40px_80px_rgba(15,23,42,0.18)]">
@@ -149,6 +150,7 @@ function Settings() {
           <ContextManager />
         </SectionCard>
       </div>
+
     </div>
   );
 }

@@ -22,6 +22,44 @@ from src.utils.url import (
     sitemap_url_for_root,
 )
 
+NON_ENGLISH_PREFIXES = {
+    "ar",
+    "bg",
+    "cs",
+    "da",
+    "de",
+    "el",
+    "es",
+    "et",
+    "fi",
+    "fr",
+    "he",
+    "hi",
+    "hr",
+    "hu",
+    "id",
+    "it",
+    "ja",
+    "ko",
+    "lt",
+    "lv",
+    "ms",
+    "nl",
+    "no",
+    "pl",
+    "pt",
+    "ro",
+    "ru",
+    "sk",
+    "sl",
+    "sv",
+    "th",
+    "tr",
+    "uk",
+    "vi",
+    "zh",
+}
+
 
 def _setup_logger(logs_dir: Path | None):
     if logs_dir is None:
@@ -63,6 +101,29 @@ def _extract_links(html: str, base_url: str) -> list[str]:
     return links
 
 
+def _is_english_url(url: str, root_netloc: str, language: str = "en") -> bool:
+    parsed = urlparse(url)
+    if not is_same_domain(parsed.netloc, root_netloc):
+        return False
+
+    path = (parsed.path or "").strip("/")
+    if not path:
+        return True
+
+    first_segment = path.split("/", 1)[0].lower()
+    if first_segment in {language.lower(), f"{language.lower()}-us", f"{language.lower()}-gb", "english"}:
+        return True
+    if first_segment in NON_ENGLISH_PREFIXES:
+        return False
+
+    host = parsed.netloc.split(":", 1)[0].lower()
+    host_label = host.split(".", 1)[0]
+    if host_label in NON_ENGLISH_PREFIXES and host_label != "www":
+        return False
+
+    return True
+
+
 def discover_internal_urls(
     root_url: str,
     max_pages: int = DISCOVERY_MAX_PAGES,
@@ -71,6 +132,7 @@ def discover_internal_urls(
     logs_dir: Path | None = None,
     request_timeout: int = REQUEST_TIMEOUT,
     max_retries: int = MAX_RETRIES,
+    language: str = "en",
 ) -> list[str]:
     """Discover internal URLs via sitemap and bounded BFS."""
     parsed_root = urlparse(root_url)
@@ -86,7 +148,11 @@ def discover_internal_urls(
         sitemap_url = sitemap_url_for_root(root_url)
         for raw in parse_sitemap(sitemap_url, timeout=request_timeout, visited=set()):
             norm = normalize_url(raw)
-            if is_same_domain(urlparse(norm).netloc, root_netloc) and not is_asset_url(norm):
+            if (
+                is_same_domain(urlparse(norm).netloc, root_netloc)
+                and not is_asset_url(norm)
+                and _is_english_url(norm, root_netloc, language=language)
+            ):
                 seeded.append(norm)
                 if len(seeded) >= max_pages:
                     break
@@ -116,7 +182,11 @@ def discover_internal_urls(
         for href in _extract_links(html, url):
             norm = normalize_url(href)
             parsed = urlparse(norm)
-            if not is_same_domain(parsed.netloc, root_netloc) or is_asset_url(norm):
+            if (
+                not is_same_domain(parsed.netloc, root_netloc)
+                or is_asset_url(norm)
+                or not _is_english_url(norm, root_netloc, language=language)
+            ):
                 continue
             if norm in seen:
                 continue
