@@ -71,25 +71,22 @@ function Settings() {
     setIsEditing(true);
   };
 
-
   return (
-    <div className="h-full min-h-0 overflow-y-auto pr-1 space-y-6">
-      <div className="rounded-[2rem] border border-zinc-800 bg-[#111317] p-6 shadow-[0_40px_80px_rgba(15,23,42,0.18)]">
+    <div className="h-full min-h-0 space-y-6 overflow-y-auto pr-1">
+      <div className="surface-page p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.32em] text-cyan-400">
-              Workspace preferences
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold text-zinc-100">
+            <p className="text-kicker">Workspace preferences</p>
+            <h1 className="text-surface-title mt-3 text-3xl font-semibold sm:text-4xl">
               Settings
             </h1>
-            <p className="mt-3 text-sm leading-6 text-zinc-400">
-              Configure your AI workspace experience, appearance options, and
-              retrieval controls.
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-[color:var(--body)]">
+              Configure your AI workspace experience, appearance options, and retrieval
+              controls.
             </p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-3xl border border-zinc-800 bg-[#0f1116] px-4 py-3 text-sm text-zinc-200">
-            <Cog className="h-4 w-4 text-cyan-400" />
+          <div className="surface-card inline-flex items-center gap-2 px-4 py-3 text-sm text-[color:var(--body)]">
+            <Cog className="h-4 w-4 text-[color:var(--primary)]" />
             Workspace settings
           </div>
         </div>
@@ -97,15 +94,15 @@ function Settings() {
 
       <SectionCard title="Prompt settings">
         <div className="space-y-3">
-          <label className="block text-sm text-zinc-300">Role</label>
+          <label className="block text-sm text-[color:var(--body)]">Role</label>
           <textarea
             value={isEditing ? role : settings.role || ""}
             onChange={(e) => setRole(e.target.value)}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-70"
+            className="field"
             rows={3}
             disabled={isLoading || !isEditing}
           />
-          <label className="block text-sm text-zinc-300">
+          <label className="block text-sm text-[color:var(--body)]">
             Additional constraints (one per line)
           </label>
           <textarea
@@ -115,29 +112,29 @@ function Settings() {
                 : (settings.constraints || []).join("\n")
             }
             onChange={(e) => setConstraintsText(e.target.value)}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-70"
+            className="field"
             rows={6}
             disabled={isLoading || !isEditing}
           />
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={handleEdit}
               disabled={isLoading || isEditing}
-              className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+              className="button-secondary"
             >
               Edit
             </button>
             <button
               onClick={handleSave}
               disabled={isLoading || !isEditing || !isDirty}
-              className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-60"
+              className="button-primary"
             >
               Save
             </button>
             <button
               onClick={handleReset}
               disabled={isLoading}
-              className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+              className="button-secondary"
             >
               Reset Defaults
             </button>
@@ -150,7 +147,6 @@ function Settings() {
           <ContextManager />
         </SectionCard>
       </div>
-
     </div>
   );
 }

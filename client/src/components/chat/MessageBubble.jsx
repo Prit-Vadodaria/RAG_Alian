@@ -13,19 +13,19 @@ function MessageBubble({ message, onSelectSource }) {
 
   return (
     <div
-      className={`group flex flex-col gap-4 rounded-[1.75rem] border px-5 py-5 shadow-sm transition ${
+      className={`group flex flex-col gap-4 px-5 py-5 transition chat-message ${
         isAssistant
-          ? "border-zinc-800 bg-[#111317] text-zinc-100"
-          : "self-end border-cyan-500/20 bg-cyan-500/10 text-zinc-100"
+          ? "chat-message-assistant text-[color:var(--ink)]"
+          : "self-end chat-message-user text-[color:var(--ink)]"
       }`}
     >
-      <div className="flex items-center justify-between gap-4 text-xs text-zinc-500">
+      <div className="flex items-center justify-between gap-4 text-xs text-[color:var(--muted)]">
         <span className="font-semibold uppercase tracking-[0.3em]">
           {isAssistant ? "Assistant" : "You"}
         </span>
         <span>{createdAt}</span>
       </div>
-      <div className="markdown-body text-sm leading-7 text-zinc-200">
+      <div className="markdown-body text-sm">
         <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
           {message.content}
         </ReactMarkdown>

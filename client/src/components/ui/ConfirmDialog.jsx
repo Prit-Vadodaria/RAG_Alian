@@ -11,14 +11,14 @@ export default function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
-      <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+    <div className="modal-overlay flex items-center justify-center px-4 py-6">
+      <div className="modal-panel w-full max-w-md p-6">
         <div className="space-y-4">
           <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-zinc-500">
+            <p className="text-kicker">
               {title}
             </p>
-            <p className="mt-3 text-sm leading-6 text-zinc-200">
+            <p className="mt-3 text-sm leading-6 text-[color:var(--body)]">
               {description}
             </p>
           </div>
@@ -26,7 +26,7 @@ export default function ConfirmDialog({
             <button
               type="button"
               onClick={onCancel}
-              className="inline-flex justify-center rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800"
+              className="button-secondary justify-center"
             >
               {cancelText}
             </button>
@@ -34,7 +34,7 @@ export default function ConfirmDialog({
               type="button"
               onClick={onConfirm}
               disabled={loading}
-              className="inline-flex justify-center rounded-2xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="button-danger justify-center"
             >
               {loading ? "Deleting..." : confirmText}
             </button>

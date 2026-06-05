@@ -36,8 +36,7 @@ function Chatbots() {
   const availableContexts = useMemo(
     () =>
       contexts.filter(
-        (context) =>
-          String(context.status || "").toLowerCase() === "ready",
+        (context) => String(context.status || "").toLowerCase() === "ready",
       ),
     [contexts],
   );
@@ -47,9 +46,9 @@ function Chatbots() {
   const [welcomeMessage, setWelcomeMessage] = useState("");
   const [allowedDomains, setAllowedDomains] = useState("");
   const [primaryContextId, setPrimaryContextId] = useState("");
-  const [accentColor, setAccentColor] = useState("#22d3ee");
-  const [panelColor, setPanelColor] = useState("#111827");
-  const [textColor, setTextColor] = useState("#e5e7eb");
+  const [accentColor, setAccentColor] = useState("#c9775c");
+  const [panelColor, setPanelColor] = useState("#171613");
+  const [textColor, setTextColor] = useState("#f9f5ee");
   const [isChatbotsLoading, setIsChatbotsLoading] = useState(false);
   const [isChatbotSaving, setIsChatbotSaving] = useState(false);
   const [chatbotError, setChatbotError] = useState("");
@@ -71,7 +70,10 @@ function Chatbots() {
   }, []);
 
   useEffect(() => {
-    if (selectedContext && availableContexts.some((context) => context.id === selectedContext)) {
+    if (
+      selectedContext &&
+      availableContexts.some((context) => context.id === selectedContext)
+    ) {
       setPrimaryContextId(selectedContext);
     } else {
       setPrimaryContextId(availableContexts[0]?.id || "");
@@ -172,22 +174,20 @@ function Chatbots() {
   };
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto pr-1 space-y-6">
-      <div className="rounded-[2rem] border border-zinc-800 bg-[#111317] p-6 shadow-[0_40px_80px_rgba(15,23,42,0.18)]">
+    <div className="h-full min-h-0 space-y-6 overflow-y-auto pr-1">
+      <div className="surface-page p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.32em] text-cyan-400">
-              Deployment
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold text-zinc-100">
+            <p className="text-kicker">Deployment</p>
+            <h1 className="text-surface-title mt-3 text-3xl font-semibold sm:text-4xl">
               Chatbot deployment
             </h1>
-            <p className="mt-3 text-sm leading-6 text-zinc-400">
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-[color:var(--body)]">
               Create and export the embeddable chatbot widget.
             </p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-3xl border border-zinc-800 bg-[#0f1116] px-4 py-3 text-sm text-zinc-200">
-            <Cog className="h-4 w-4 text-cyan-400" />
+          <div className="surface-card inline-flex items-center gap-2 px-4 py-3 text-sm text-[color:var(--body)]">
+            <Cog className="h-4 w-4 text-[color:var(--primary)]" />
             Widget manager
           </div>
         </div>
@@ -195,21 +195,22 @@ function Chatbots() {
 
       <SectionCard title="Create chatbot">
         <div className="space-y-5">
-          <p className="text-sm text-zinc-400">
-            Create a multi-tenant public chatbot that is served only through the orchestrator.
+          <p className="text-sm text-[color:var(--body)]">
+            Create a multi-tenant public chatbot that is served only through the
+            orchestrator.
           </p>
           <div className="grid gap-3 md:grid-cols-2">
             <input
               value={chatbotName}
               onChange={(event) => setChatbotName(event.target.value)}
               placeholder="Chatbot name"
-              className="rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-500"
+              className="field"
               disabled={isChatbotSaving}
             />
             <select
               value={primaryContextId}
               onChange={(event) => setPrimaryContextId(event.target.value)}
-              className="rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-500"
+              className="field"
               disabled={isChatbotSaving}
             >
               {availableContexts.map((context) => (
@@ -223,7 +224,7 @@ function Chatbots() {
               onChange={(event) => setWelcomeMessage(event.target.value)}
               placeholder="Welcome message"
               rows={3}
-              className="rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-500 md:col-span-2"
+              className="field md:col-span-2"
               disabled={isChatbotSaving}
             />
             <textarea
@@ -231,28 +232,28 @@ function Chatbots() {
               onChange={(event) => setAllowedDomains(event.target.value)}
               placeholder="Allowed domains, one per line (leave blank to allow all)"
               rows={3}
-              className="rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-500 md:col-span-2"
+              className="field md:col-span-2"
               disabled={isChatbotSaving}
             />
             <input
               value={accentColor}
               onChange={(event) => setAccentColor(event.target.value)}
-              placeholder="#22d3ee"
-              className="rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-500"
+              placeholder="#c9775c"
+              className="field"
               disabled={isChatbotSaving}
             />
             <input
               value={panelColor}
               onChange={(event) => setPanelColor(event.target.value)}
-              placeholder="#111827"
-              className="rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-500"
+              placeholder="#171613"
+              className="field"
               disabled={isChatbotSaving}
             />
             <input
               value={textColor}
               onChange={(event) => setTextColor(event.target.value)}
-              placeholder="#e5e7eb"
-              className="rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-500 md:col-span-2"
+              placeholder="#f9f5ee"
+              className="field md:col-span-2"
               disabled={isChatbotSaving}
             />
           </div>
@@ -261,7 +262,7 @@ function Chatbots() {
               type="button"
               onClick={handleCreateChatbot}
               disabled={isChatbotSaving}
-              className="inline-flex items-center gap-2 rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="button-primary"
             >
               {isChatbotSaving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -270,7 +271,9 @@ function Chatbots() {
               )}
               Create chatbot
             </button>
-            {chatbotError && <p className="text-sm text-red-400">{chatbotError}</p>}
+            {chatbotError && (
+              <p className="text-sm text-[color:var(--error)]">{chatbotError}</p>
+            )}
           </div>
         </div>
       </SectionCard>
@@ -278,39 +281,40 @@ function Chatbots() {
       <SectionCard title="Deployed chatbots">
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-[color:var(--body)]">
               Copy the embed snippet or disable a bot globally.
             </p>
-            {isChatbotsLoading && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}
+            {isChatbotsLoading && (
+              <Loader2 className="h-4 w-4 animate-spin text-[color:var(--muted)]" />
+            )}
           </div>
           {chatbots.length === 0 && (
-            <p className="text-sm text-zinc-400">No chatbots created yet.</p>
+            <p className="text-sm text-[color:var(--body)]">No chatbots created yet.</p>
           )}
           {chatbots.map((chatbot) => (
-            <div
-              key={chatbot.id}
-              className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4"
-            >
+            <div key={chatbot.id} className="surface-card p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-zinc-100">{chatbot.name}</p>
-                    <span className="rounded-full border border-zinc-700 px-2 py-1 text-[11px] uppercase tracking-[0.24em] text-zinc-400">
+                    <p className="font-medium text-[color:var(--ink)]">
+                      {chatbot.name}
+                    </p>
+                    <span className="token-pill text-[10px] uppercase tracking-[0.24em]">
                       {chatbot.is_active ? "active" : "disabled"}
                     </span>
                     {chatbot.is_active ? (
-                      <Check className="h-4 w-4 text-emerald-400" />
+                      <Check className="h-4 w-4 text-[color:var(--success)]" />
                     ) : null}
                   </div>
-                  <p className="mt-1 text-xs text-zinc-500">{chatbot.id}</p>
-                  <p className="mt-1 text-xs text-cyan-400/80">
+                  <p className="mt-1 text-xs text-[color:var(--muted)]">{chatbot.id}</p>
+                  <p className="mt-1 text-xs text-[color:var(--primary-strong)]">
                     namespace: {chatbot.namespace}
                   </p>
-                  <p className="mt-1 text-xs text-zinc-400">
+                  <p className="mt-1 text-xs text-[color:var(--body)]">
                     context: {chatbot.primary_context_id || "unassigned"}
                   </p>
                   {chatbot.reindex_error ? (
-                    <p className="mt-1 max-w-[32rem] text-xs text-red-300">
+                    <p className="mt-1 max-w-[32rem] text-xs text-[color:var(--error)]">
                       {chatbot.reindex_error}
                     </p>
                   ) : null}
@@ -319,7 +323,7 @@ function Chatbots() {
                   <button
                     type="button"
                     onClick={() => handleToggleChatbot(chatbot)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-200 transition hover:border-cyan-500"
+                    className="button-secondary px-4 py-2"
                   >
                     {chatbot.is_active ? (
                       <PowerOff className="h-4 w-4" />
@@ -331,10 +335,10 @@ function Chatbots() {
                   <button
                     type="button"
                     onClick={() => handleCopySnippet(chatbot.id)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-200 transition hover:border-cyan-500"
+                    className="button-secondary px-4 py-2"
                   >
                     {copiedSnippetId === chatbot.id ? (
-                      <Check className="h-4 w-4 text-emerald-400" />
+                      <Check className="h-4 w-4 text-[color:var(--success)]" />
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}
@@ -343,7 +347,7 @@ function Chatbots() {
                   <button
                     type="button"
                     onClick={() => setConfirmChatbot(chatbot)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-200 transition hover:bg-red-500/20"
+                    className="button-danger px-4 py-2"
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete

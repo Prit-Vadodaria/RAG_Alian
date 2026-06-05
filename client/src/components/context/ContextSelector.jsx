@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useContextStore } from "../../store/contextStore";
-import ConfirmDialog from "../ui/ConfirmDialog";
 
 function isReadyContext(context) {
   const status = (context?.status || "").toLowerCase();
@@ -8,18 +8,9 @@ function isReadyContext(context) {
 }
 
 export default function ContextSelector() {
-  const {
-    contexts,
-    selectedContext,
-    fetchContexts,
-    setSelectedContext,
-    removeContext,
-    showToast,
-  } = useContextStore();
+  const { contexts, selectedContext, fetchContexts, setSelectedContext } =
+    useContextStore();
   const [open, setOpen] = useState(false);
-  const [confirmContext, setConfirmContext] = useState(null);
-  const [deletingContextId, setDeletingContextId] = useState(null);
-  const [deleteError, setDeleteError] = useState(null);
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -55,100 +46,57 @@ export default function ContextSelector() {
       name: "Select context",
     };
 
+  const handleSelect = (contextId) => {
+    setSelectedContext(contextId);
+    setOpen(false);
+  };
+
   return (
     <div className="relative w-full" ref={rootRef}>
       <button
         type="button"
         onClick={() => setOpen((s) => !s)}
-        className="w-full flex items-center justify-between gap-2 rounded-2xl border border-cyan-500 bg-cyan-500/5 px-3 py-2 text-sm font-semibold text-cyan-200 transition hover:border-cyan-400"
+        className={`button-secondary flex w-full items-center justify-between gap-2 px-3 py-2 text-sm ${
+          open ? "rounded-b-none border-b-0" : ""
+        }`}
       >
         <span className="truncate">{current.name}</span>
-        <span className="text-xs text-zinc-400">{open ? "▴" : "▾"}</span>
+        {open ? (
+          <ChevronUp className="h-4 w-4" />
+        ) : (
+          <ChevronDown className="h-4 w-4" />
+        )}
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 z-50 mt-2 max-h-64 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900 p-2 shadow-lg">
-          {deleteError && (
-            <div className="mb-2 rounded border border-red-600 bg-red-600/10 px-3 py-2 text-sm text-red-200">
-              {deleteError}
-            </div>
-          )}
+        <div className="-mt-px absolute left-0 right-0 z-50 max-h-72 overflow-y-auto rounded-t-none rounded-b-[0.5rem] surface-dark-elevated p-2">
           {readyContexts.length === 0 && (
-            <div className="px-2 py-2 text-sm text-zinc-400">
+            <div className="px-2 py-3 text-sm text-[color:var(--on-dark-soft)]">
               No ready contexts
             </div>
           )}
-          {readyContexts.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center justify-between gap-2 rounded px-2 py-2 hover:bg-zinc-800"
-            >
-              <div className="min-w-0">
-                <div className="truncate font-medium">{c.name}</div>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                <button
-                  onClick={() => {
-                    setSelectedContext(c.id);
-                    setOpen(false);
-                  }}
-                  disabled={deletingContextId === c.id}
-                  className={`px-2 py-1 rounded text-sm bg-zinc-800 ${
-                    deletingContextId === c.id
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
-                >
-                  Select
-                </button>
-                {c.isDeletable && (
-                  <button
-                    onClick={() => setConfirmContext(c)}
-                    disabled={deletingContextId === c.id}
-                    className={`px-2 py-1 rounded text-sm ${
-                      deletingContextId === c.id
-                        ? "bg-red-600/60 opacity-50 cursor-not-allowed"
-                        : "bg-red-600"
-                    }`}
-                  >
-                    {deletingContextId === c.id ? "Deleting..." : "Delete"}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+          {readyContexts.map((c) => {
+            const active = c.id === selectedContext;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => handleSelect(c.id)}
+                className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${
+                  active
+                    ? "bg-[color:var(--surface-dark-soft)] text-[color:var(--on-dark)]"
+                    : "text-[color:var(--on-dark-soft)] hover:bg-[color:var(--surface-dark-soft)] hover:text-[color:var(--on-dark)]"
+                }`}
+              >
+                <span className="min-w-0 truncate">{c.name}</span>
+                {active ? (
+                  <span className="token-pill shrink-0">Selected</span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       )}
-      <ConfirmDialog
-        open={Boolean(confirmContext)}
-        title="Confirm delete"
-        description={
-          confirmContext
-            ? `Delete context '${confirmContext.name}'? This cannot be undone.`
-            : ""
-        }
-        confirmText="Delete"
-        cancelText="Cancel"
-        loading={deletingContextId === confirmContext?.id}
-        onConfirm={async () => {
-          if (!confirmContext) return;
-          setDeleteError(null);
-          setDeletingContextId(confirmContext.id);
-          try {
-            await removeContext(confirmContext.id);
-            await fetchContexts();
-            showToast(`Deleted context '${confirmContext.name}'.`, "success");
-            setOpen(false);
-            setConfirmContext(null);
-          } catch (err) {
-            console.error("Failed to delete context", err);
-            setDeleteError(err?.message || String(err));
-          } finally {
-            setDeletingContextId(null);
-          }
-        }}
-        onCancel={() => setConfirmContext(null)}
-      />
     </div>
   );
 }

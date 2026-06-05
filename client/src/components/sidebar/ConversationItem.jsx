@@ -6,8 +6,8 @@ function ConversationItem({ chat, active, onSelect, onDelete }) {
     <div
       className={`group flex items-center justify-between gap-3 rounded-2xl border px-3 py-3 transition ${
         active
-          ? "border-cyan-500 bg-zinc-900 text-cyan-100 shadow-cyan-500/10"
-          : "border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900"
+          ? "border-[rgba(201,119,92,0.28)] bg-[rgba(201,119,92,0.12)] text-[color:var(--on-dark)]"
+          : "border-[rgba(255,255,255,0.08)] bg-[color:var(--surface-dark-soft)] text-[color:var(--on-dark-soft)] hover:border-[rgba(255,255,255,0.14)] hover:bg-[color:var(--surface-dark-elevated)] hover:text-[color:var(--on-dark)]"
       }`}
     >
       <button
@@ -15,15 +15,15 @@ function ConversationItem({ chat, active, onSelect, onDelete }) {
         className="flex-1 min-w-0 text-left"
         onClick={() => onSelect(chat.id)}
       >
-        <p className="text-sm font-semibold truncate">{chat.title}</p>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="truncate text-sm font-semibold">{chat.title}</p>
+        <p className="mt-1 text-xs text-[color:var(--on-dark-soft)]">
           {formatTime(chat.createdAt)}
         </p>
       </button>
       <button
         type="button"
         onClick={() => onDelete(chat.id)}
-        className="shrink-0 rounded-full p-2 text-zinc-500 transition hover:bg-zinc-900 hover:text-rose-400"
+        className="shrink-0 rounded-full p-2 text-[color:var(--on-dark-soft)] transition hover:bg-[color:var(--surface-dark-elevated)] hover:text-[color:var(--error)]"
       >
         <Trash2 className="h-4 w-4" />
       </button>

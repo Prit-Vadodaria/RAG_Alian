@@ -36,7 +36,7 @@ function ChatList({ collapsed, onAfterSelect }) {
     <div className="space-y-4">
       {Object.keys(groupedChats).map((group) => (
         <div key={group} className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+          <p className="text-kicker text-[color:var(--on-dark-soft)]">
             {group}
           </p>
           <div className="space-y-3">

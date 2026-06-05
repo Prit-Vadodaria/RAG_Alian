@@ -15,15 +15,15 @@ export default function ToastContainer() {
   if (!toastMessage) return null;
 
   const variantStyles = {
-    info: "border-cyan-500/30 bg-cyan-500/10 text-cyan-100",
-    success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-    error: "border-rose-500/30 bg-rose-500/10 text-rose-200",
+    info: "border-[rgba(201,119,92,0.24)] bg-[rgba(201,119,92,0.12)] text-[color:var(--ink)]",
+    success: "border-[rgba(79,157,103,0.24)] bg-[rgba(79,157,103,0.12)] text-[color:var(--ink)]",
+    error: "border-[rgba(184,78,78,0.24)] bg-[rgba(184,78,78,0.12)] text-[color:var(--ink)]",
   };
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-4 z-50 flex justify-center px-4 sm:justify-end">
       <div
-        className={`pointer-events-auto max-w-md rounded-3xl border px-4 py-3 shadow-xl backdrop-blur-sm ${
+        className={`pointer-events-auto max-w-md rounded-[1.5rem] border px-4 py-3 shadow-xl backdrop-blur-sm ${
           variantStyles[toastType] || variantStyles.info
         }`}
       >
@@ -32,7 +32,7 @@ export default function ToastContainer() {
           <button
             type="button"
             onClick={clearToast}
-            className="text-xs text-zinc-400 transition hover:text-zinc-200"
+            className="text-xs text-[color:var(--muted)] transition hover:text-[color:var(--ink)]"
           >
             Close
           </button>

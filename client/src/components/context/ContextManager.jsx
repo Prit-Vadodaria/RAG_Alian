@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Globe, Loader2, Plus, Trash2 } from "lucide-react";
+import { Globe, Loader2, Pause, Play, Plus, Trash2 } from "lucide-react";
 import { useContextStore } from "../../store/contextStore";
 import ContextStatusBadge from "./ContextStatusBadge";
 import ConfirmDialog from "../ui/ConfirmDialog";
@@ -19,6 +19,8 @@ export default function ContextManager() {
     fetchContexts,
     addContext,
     removeContext,
+    pauseContext,
+    resumeContext,
     showToast,
   } = useContextStore();
 
@@ -26,6 +28,7 @@ export default function ContextManager() {
   const [submitError, setSubmitError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
   const [confirmContext, setConfirmContext] = useState(null);
   const [chunkingDefaults, setChunkingDefaults] = useState(FALLBACK_CHUNKING);
   const [chunking, setChunking] = useState(FALLBACK_CHUNKING);
@@ -62,10 +65,7 @@ export default function ContextManager() {
 
     const maxChunkTokens = Number.parseInt(String(chunking.maxChunkTokens), 10);
     const minChunkTokens = Number.parseInt(String(chunking.minChunkTokens), 10);
-    const chunkOverlapTokens = Number.parseInt(
-      String(chunking.chunkOverlapTokens),
-      10,
-    );
+    const chunkOverlapTokens = Number.parseInt(String(chunking.chunkOverlapTokens), 10);
 
     if (!Number.isFinite(maxChunkTokens) || maxChunkTokens < 100) {
       setSubmitError("Max Chunk Tokens must be at least 100.");
@@ -100,6 +100,7 @@ export default function ContextManager() {
       setUrl("");
       setChunking(chunkingDefaults);
       await fetchContexts();
+      showToast("Context added.", "success");
     } catch (err) {
       setSubmitError(err.message || String(err));
     } finally {
@@ -127,30 +128,57 @@ export default function ContextManager() {
     }
   };
 
+  const handlePause = async (context) => {
+    setUpdatingId(context.id);
+    setSubmitError(null);
+    try {
+      await pauseContext(context.id);
+      await fetchContexts();
+      showToast(`Paused context '${context.name}'.`, "success");
+    } catch (err) {
+      setSubmitError(err.message || String(err));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleResume = async (context) => {
+    setUpdatingId(context.id);
+    setSubmitError(null);
+    try {
+      await resumeContext(context.id);
+      await fetchContexts();
+      showToast(`Resumed context '${context.name}'.`, "success");
+    } catch (err) {
+      setSubmitError(err.message || String(err));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   return (
     <div className="space-y-5">
-      <form
-        onSubmit={handleAdd}
-        className="rounded-[1.75rem] border border-zinc-800 bg-[#0f1116] p-5"
-      >
-        <div className="flex items-center gap-3 text-cyan-400">
+      <form onSubmit={handleAdd} className="surface-page p-5">
+        <div className="flex items-center gap-3 text-[color:var(--primary)]">
           <Globe className="h-5 w-5" />
-          <p className="font-semibold text-zinc-100">Add website context</p>
+          <p className="text-sm font-semibold text-[color:var(--ink)]">
+            Add website context
+          </p>
         </div>
-        <p className="mt-2 text-sm text-zinc-400">
-          Ingest a new site into an isolated workspace. Chat stays available
-          while ingestion runs in the background.
+        <p className="mt-2 text-sm text-[color:var(--body)]">
+          Ingest a new site into an isolated workspace. Chat stays available while
+          ingestion runs in the background.
         </p>
         <div className="mt-4">
-          <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">
-            Chunking configuration
-          </p>
-          <p className="mt-2 text-sm text-zinc-400">
+          <p className="text-kicker">Chunking configuration</p>
+          <p className="mt-2 text-sm text-[color:var(--body)]">
             Controls how website content is split before embeddings are generated.
           </p>
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
             <label className="space-y-2">
-              <span className="block text-sm text-zinc-300">Max Chunk Tokens</span>
+              <span className="block text-sm text-[color:var(--body)]">
+                Max Chunk Tokens
+              </span>
               <input
                 type="number"
                 min="100"
@@ -162,12 +190,14 @@ export default function ContextManager() {
                   }))
                 }
                 placeholder={String(chunkingDefaults.maxChunkTokens)}
-                className="w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-500"
+                className="field"
                 disabled={isSubmitting}
               />
             </label>
             <label className="space-y-2">
-              <span className="block text-sm text-zinc-300">Min Chunk Tokens</span>
+              <span className="block text-sm text-[color:var(--body)]">
+                Min Chunk Tokens
+              </span>
               <input
                 type="number"
                 min="20"
@@ -179,12 +209,14 @@ export default function ContextManager() {
                   }))
                 }
                 placeholder={String(chunkingDefaults.minChunkTokens)}
-                className="w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-500"
+                className="field"
                 disabled={isSubmitting}
               />
             </label>
             <label className="space-y-2">
-              <span className="block text-sm text-zinc-300">Chunk Overlap</span>
+              <span className="block text-sm text-[color:var(--body)]">
+                Chunk Overlap
+              </span>
               <input
                 type="number"
                 min="0"
@@ -196,7 +228,7 @@ export default function ContextManager() {
                   }))
                 }
                 placeholder={String(chunkingDefaults.chunkOverlapTokens)}
-                className="w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-500"
+                className="field"
                 disabled={isSubmitting}
               />
             </label>
@@ -207,13 +239,13 @@ export default function ContextManager() {
             value={url}
             onChange={(event) => setUrl(event.target.value)}
             placeholder="https://example.com"
-            className="flex-1 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-500"
+            className="field flex-1"
             disabled={isSubmitting}
           />
           <button
             type="submit"
             disabled={isSubmitting || !url.trim()}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="button-primary"
           >
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -224,64 +256,102 @@ export default function ContextManager() {
           </button>
         </div>
         {(submitError || error) && (
-          <p className="mt-3 text-sm text-red-400">{submitError || error}</p>
+          <p className="mt-3 text-sm text-[color:var(--error)]">
+            {submitError || error}
+          </p>
         )}
       </form>
 
-      <div className="rounded-[1.75rem] border border-zinc-800 bg-[#0f1116] p-5">
+      <div className="surface-page p-5">
         <div className="flex items-center justify-between gap-3">
-          <p className="font-semibold text-zinc-100">Registered contexts</p>
-          {loading && (
-            <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
-          )}
+          <p className="text-sm font-semibold text-[color:var(--ink)]">
+            Registered contexts
+          </p>
+          {loading && <Loader2 className="h-4 w-4 animate-spin text-[color:var(--muted)]" />}
         </div>
-        <p className="mt-1 text-xs text-zinc-500">Refreshes every 5 seconds</p>
+        <p className="mt-1 text-xs text-[color:var(--muted)]">Refreshes every 5 seconds</p>
 
         <div className="mt-4 space-y-3">
           {contexts.length === 0 && (
-            <p className="text-sm text-zinc-400">No contexts registered yet.</p>
+            <p className="text-sm text-[color:var(--body)]">No contexts registered yet.</p>
           )}
           {contexts.map((context) => (
             <div
               key={context.id}
-              className="flex flex-col gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="surface-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="truncate font-medium text-zinc-100">
+                  <p className="truncate font-medium text-[color:var(--ink)]">
                     {context.name}
                   </p>
                   <ContextStatusBadge status={context.status} />
                   {context.isDefault && (
-                    <span className="text-xs text-zinc-500">default</span>
+                    <span className="text-xs text-[color:var(--muted)]">default</span>
                   )}
                 </div>
-                <p className="mt-1 truncate text-xs text-zinc-500">
+                <p className="mt-1 truncate text-xs text-[color:var(--muted)]">
                   {context.id}
                 </p>
                 {context.seed_url && (
-                  <p className="mt-1 truncate text-xs text-cyan-400/80">
+                  <p className="mt-1 truncate text-xs text-[color:var(--primary-strong)]">
                     {context.seed_url}
                   </p>
                 )}
               </div>
-              {context.isDeletable && (
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => handleDelete(context)}
+                  onClick={() => handlePause(context)}
                   disabled={
-                    deletingId === context.id || context.status === "deleting"
+                    updatingId === context.id ||
+                    context.status !== "ingesting" ||
+                    context.status === "ready"
                   }
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="button-secondary px-3 py-2 text-xs"
                 >
-                  {deletingId === context.id ? (
+                  {updatingId === context.id && context.status === "ingesting" ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Trash2 className="h-4 w-4" />
+                    <Pause className="h-4 w-4" />
                   )}
-                  Delete
+                  Pause
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={() => handleResume(context)}
+                  disabled={
+                    updatingId === context.id ||
+                    context.status !== "paused" ||
+                    context.status === "ready"
+                  }
+                  className="button-secondary px-3 py-2 text-xs"
+                >
+                  {updatingId === context.id && context.status === "paused" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  Continue
+                </button>
+                {context.isDeletable && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(context)}
+                    disabled={
+                      deletingId === context.id || context.status === "deleting"
+                    }
+                    className="button-danger px-3 py-2 text-xs"
+                  >
+                    {deletingId === context.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

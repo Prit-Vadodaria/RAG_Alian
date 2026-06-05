@@ -31,20 +31,20 @@ function ChatInput({ onSubmit, disabled }) {
           onChange={(event) => setMessage(event.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
-          className="h-12 flex-1 resize-none rounded-2xl border border-zinc-800 bg-[#0b0c11] px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+          className="field-dark h-12 flex-1 resize-none px-4 py-3 text-sm"
           placeholder="Type your message..."
           disabled={disabled}
         />
         <button
           type="submit"
           disabled={disabled}
-          className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-cyan-500 text-slate-950 shadow-sm transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="button-primary h-12 w-12 flex-shrink-0 px-0 py-0"
           aria-label="Send message"
         >
           <Send className="h-5 w-5" />
         </button>
       </div>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-[color:var(--on-dark-soft)]">
         Enter to send • Shift + Enter for newline
       </p>
     </form>

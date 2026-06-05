@@ -237,12 +237,12 @@ function Chat() {
         title={activeChat.title}
         messageCount={activeChat.messages.length}
       />
-      <div className="grid h-full min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid h-full min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1fr)_360px]">
         <ChatWindow>
           <div className="flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden px-2 py-3 sm:px-0 sm:py-0">
             <div
               ref={chatScrollRef}
-              className="flex-1 overflow-y-auto space-y-3 p-3"
+              className="flex-1 space-y-3 overflow-y-auto p-3"
             >
               {activeChat.messages.length === 0 ? (
                 <EmptyState
@@ -261,17 +261,17 @@ function Chat() {
               {isThinking && <ThinkingBubble message={thinkingMessage} />}
             </div>
           </div>
-          <div className="border-t border-zinc-800 bg-[#0b0c11] p-3 sm:p-4">
+          <div className="chat-composer flex-shrink-0 p-3 sm:p-4">
             <ChatInput onSubmit={handleSend} disabled={isThinking} />
           </div>
         </ChatWindow>
         <aside className="space-y-4 overflow-hidden pr-1">
-          <div className="rounded-[1.75rem] border border-zinc-800 bg-[#111317] p-4 shadow-[0_32px_80px_rgba(15,23,42,0.18)]">
+          <div className="surface-page p-4">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-400">
+              <h2 className="text-kicker">
                 Latest metrics
               </h2>
-              <span className="text-xs uppercase tracking-[0.28em] text-zinc-500">
+              <span className="text-kicker text-[color:var(--muted-soft)]">
                 Live
               </span>
             </div>
@@ -280,44 +280,44 @@ function Chat() {
               <RetrievalStats latency={lastAssistantMessage?.latency ?? {}} />
             </div>
           </div>
-          <div className="rounded-[1.75rem] border border-zinc-800 bg-[#111317] p-4 shadow-[0_32px_80px_rgba(15,23,42,0.18)]">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-400">
+          <div className="surface-page p-4">
+            <h3 className="text-kicker">
               Confidence overview
             </h3>
             <div className="mt-3 space-y-3">
               <ConfidenceBar
                 label="Overall"
                 value={lastAssistantMessage?.confidence?.overall ?? 0}
-                colorClass="bg-cyan-400"
+                colorClass="bg-[color:var(--primary)]"
               />
               <ConfidenceBar
                 label="Retrieval"
                 value={lastAssistantMessage?.confidence?.retrieval ?? 0}
-                colorClass="bg-cyan-500"
+                colorClass="bg-[color:var(--primary-strong)]"
               />
               <ConfidenceBar
                 label="Grounding"
                 value={lastAssistantMessage?.confidence?.grounding ?? 0}
-                colorClass="bg-sky-500"
+                colorClass="bg-[color:var(--warning)]"
               />
               <ConfidenceBar
                 label="Rerank"
                 value={lastAssistantMessage?.confidence?.rerank ?? 0}
-                colorClass="bg-cyan-400"
+                colorClass="bg-[color:var(--success)]"
               />
             </div>
           </div>
           <button
             type="button"
             onClick={handleOpenPromptSettings}
-            className="group w-full rounded-[1.75rem] border border-zinc-800 bg-[#111317] p-4 text-left shadow-[0_32px_80px_rgba(15,23,42,0.18)] transition hover:border-cyan-400"
+            className="group surface-page w-full p-4 text-left transition hover:border-[rgba(201,119,92,0.28)]"
           >
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-400 group-hover:text-cyan-300">
+              <h3 className="text-kicker group-hover:text-[color:var(--primary)]">
                 Prompt settings
               </h3>
             </div>
-            <p className="mt-3 text-sm leading-6 text-zinc-400">
+            <p className="mt-3 text-sm leading-6 text-[color:var(--body)]">
               Update the role and constraints used by prompt configuration.
             </p>
           </button>

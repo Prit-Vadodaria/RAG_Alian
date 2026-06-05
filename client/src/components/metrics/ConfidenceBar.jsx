@@ -3,11 +3,11 @@ function ConfidenceBar({ label, value, colorClass }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between text-xs text-zinc-400">
+      <div className="flex items-center justify-between text-xs text-[color:var(--muted)]">
         <span>{label}</span>
         <span>{width}%</span>
       </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-zinc-800">
+      <div className="h-2.5 overflow-hidden rounded-full bg-[rgba(23,21,20,0.08)]">
         <div
           className={`h-full rounded-full ${colorClass}`}
           style={{ width: `${width}%` }}
