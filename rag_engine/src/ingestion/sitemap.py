@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from requests import RequestException
 
 from src.config.settings import LOGS_DIR, REQUEST_TIMEOUT, SITEMAP_URLS_FILE, ensure_directories
+from src.utils.url import is_english_url
 from src.utils.logging import get_logger
 
 HTTP_SCHEMES = {"http", "https"}
@@ -39,6 +40,15 @@ def filter_urls_by_language(urls: Iterable[str], language: str = "en") -> list[s
         parsed = urlparse(url.strip())
         if parsed.path == language_prefix or parsed.path.startswith(f"{language_prefix}/"):
             filtered_urls.append(url.strip())
+    return _dedupe_preserving_order(filtered_urls)
+
+
+def filter_english_urls(urls: Iterable[str]) -> list[str]:
+    filtered_urls: list[str] = []
+    for url in urls:
+        candidate = url.strip()
+        if candidate and is_english_url(candidate):
+            filtered_urls.append(candidate)
     return _dedupe_preserving_order(filtered_urls)
 
 
@@ -110,6 +120,7 @@ def parse_and_save_sitemap(
     language: str | None = None,
 ) -> list[str]:
     urls = parse_sitemap(sitemap_url, timeout=timeout, visited=set())
+    urls = filter_english_urls(urls)
     if language:
         urls = filter_urls_by_language(urls, language)
     save_urls(urls, output_path)

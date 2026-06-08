@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 from requests import RequestException
 
 from src.ingestion.sitemap import (
+    filter_english_urls,
     filter_urls_by_language,
     is_valid_url,
     parse_and_save_sitemap,
@@ -39,6 +40,19 @@ class SitemapParserTests(unittest.TestCase):
         self.assertEqual(
             filter_urls_by_language(urls, "en"),
             ["https://example.com/en", "https://example.com/en/about"],
+        )
+
+    def test_filter_english_urls_removes_localized_paths(self) -> None:
+        urls = [
+            "https://example.com/en/about",
+            "https://example.com/fr/about",
+            "https://example.com/zh-cn/about",
+            "https://example.com/blog/post",
+        ]
+
+        self.assertEqual(
+            filter_english_urls(urls),
+            ["https://example.com/en/about", "https://example.com/blog/post"],
         )
 
     @patch("src.ingestion.sitemap.requests.get")

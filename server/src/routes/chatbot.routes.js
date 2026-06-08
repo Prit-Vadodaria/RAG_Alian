@@ -9,7 +9,6 @@ const {
   enableChatbot,
   deleteChatbot,
   exportSnippet,
-  reindexChatbot,
 } = require("../controllers/chatbot.controller");
 
 const router = express.Router();
@@ -22,6 +21,5 @@ router.post("/:chatbotId/enable", enableChatbot);
 router.post("/:chatbotId/disable", disableChatbot);
 router.delete("/:chatbotId", deleteChatbot);
 router.get("/:chatbotId/export", exportSnippet);
-router.post("/:chatbotId/reindex", reindexChatbot);
 
 module.exports = router;

@@ -26,6 +26,7 @@ from src.ingestion.scraper import html_to_markdown
 from src.ingestion.parser import extract_metadata
 from src.utils.hashing import content_hash, jaccard_similarity, shingle_fingerprint
 from src.utils.logging import close_logger, get_logger
+from src.vectordb.chroma_store import ChunkRecord
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,15 @@ class ProcessingSummary:
     structured_docs_dir: str
     chunks_dir: str
     logs_dir: str
+
+
+@dataclass(frozen=True)
+class BatchProcessingResult:
+    """Results for one ingestion batch."""
+
+    summary: ProcessingSummary
+    chunk_records: list[ChunkRecord]
+    processed_document_ids: list[str]
 
 
 def discover_raw_html_files(input_dir: Path | None = None) -> list[Path]:
@@ -174,6 +184,113 @@ def process_raw_html_directory(
     finally:
         logger.info(
             "HTML processing finished processed=%s skipped_duplicates=%s empty_pages=%s failed_pages=%s exported_chunks=%s",
+            processed_documents,
+            skipped_duplicates,
+            empty_pages,
+            failed_pages,
+            exported_chunks,
+        )
+        close_logger(logger)
+
+
+def process_raw_html_files(
+    source_paths: list[Path],
+    *,
+    output_base_dir: Path | None = None,
+    chunking: dict[str, object] | None = None,
+    seen_hashes: set[str] | None = None,
+    seen_fingerprints: list[set[str]] | None = None,
+    seen_chunk_hashes: set[str] | None = None,
+) -> BatchProcessingResult:
+    """Process a specific set of HTML files into documents and chunk records."""
+    ensure_directories()
+    cleaned_dir = CLEANED_MARKDOWN_DIR if output_base_dir is None else (output_base_dir / "cleaned_markdown")
+    structured_dir = STRUCTURED_DOCS_DIR if output_base_dir is None else (output_base_dir / "structured_docs")
+    chunks_dir = CHUNKS_DIR if output_base_dir is None else (output_base_dir / "chunks")
+    logs_dir = LOGS_DIR if output_base_dir is None else (output_base_dir / "logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    logger = get_logger("html_batch_processor", logs_dir / "html_batch_processing.log")
+    resolved_chunking = _resolve_chunking_config(chunking)
+
+    batch_seen_hashes = seen_hashes if seen_hashes is not None else set()
+    batch_seen_fingerprints = seen_fingerprints if seen_fingerprints is not None else []
+    batch_seen_chunk_hashes = seen_chunk_hashes if seen_chunk_hashes is not None else set()
+
+    processed_documents = 0
+    skipped_duplicates = 0
+    empty_pages = 0
+    failed_pages = 0
+    exported_chunks = 0
+    chunk_records: list[ChunkRecord] = []
+    processed_document_ids: list[str] = []
+
+    try:
+        for source_path in sorted(source_paths):
+            result = _process_html_file(source_path, chunking=resolved_chunking)
+            if result.error:
+                failed_pages += 1
+                logger.error("Failed processing %s: %s", result.source_path, result.error)
+                continue
+
+            if result.empty or result.document is None:
+                empty_pages += 1
+                logger.warning("Skipped empty page %s", result.source_path)
+                continue
+
+            document = result.document
+            fingerprint = shingle_fingerprint(document.markdown)
+            is_near_duplicate = any(jaccard_similarity(fingerprint, existing) >= 0.92 for existing in batch_seen_fingerprints)
+            if document.document_hash in batch_seen_hashes or is_near_duplicate:
+                skipped_duplicates += 1
+                logger.info("Skipped duplicate page %s", result.source_path)
+                continue
+
+            batch_seen_hashes.add(document.document_hash)
+            batch_seen_fingerprints.append(fingerprint)
+            _export_document(document, cleaned_dir=cleaned_dir, structured_dir=structured_dir)
+
+            unique_chunks: list[dict[str, object]] = []
+            for chunk in result.chunks:
+                chunk_hash = content_hash(str(chunk.get("raw_content") or chunk.get("content", "")))
+                if chunk_hash in batch_seen_chunk_hashes:
+                    continue
+                batch_seen_chunk_hashes.add(chunk_hash)
+                unique_chunks.append(chunk)
+
+            _export_chunks(document.document_id, unique_chunks, chunks_dir=chunks_dir)
+            for chunk in unique_chunks:
+                chunk_records.append(
+                    ChunkRecord(
+                        chunk_id=str(chunk.get("chunk_id", "")),
+                        content=str(chunk.get("content", "")).strip(),
+                        metadata={
+                            key: value
+                            for key, value in chunk.items()
+                            if isinstance(value, (str, int, float, bool)) and value != ""
+                        },
+                    )
+                )
+
+            exported_chunks += len(unique_chunks)
+            processed_documents += 1
+            processed_document_ids.append(document.document_id)
+
+        summary = ProcessingSummary(
+            discovered_files=len(source_paths),
+            processed_documents=processed_documents,
+            skipped_duplicates=skipped_duplicates,
+            empty_pages=empty_pages,
+            failed_pages=failed_pages,
+            exported_chunks=exported_chunks,
+            cleaned_markdown_dir=str(cleaned_dir),
+            structured_docs_dir=str(structured_dir),
+            chunks_dir=str(chunks_dir),
+            logs_dir=str(logs_dir),
+        )
+        return BatchProcessingResult(summary=summary, chunk_records=chunk_records, processed_document_ids=processed_document_ids)
+    finally:
+        logger.info(
+            "HTML batch processing finished processed=%s skipped_duplicates=%s empty_pages=%s failed_pages=%s exported_chunks=%s",
             processed_documents,
             skipped_duplicates,
             empty_pages,

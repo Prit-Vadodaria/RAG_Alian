@@ -18,10 +18,20 @@ class WebsiteMetadata:
     id: str
     name: str
     url: str
-    status: str = "ingesting"
+    status: str = "discovering"
     is_deletable: bool = True
     pages_crawled: int = 0
     chunks_created: int = 0
+    total_urls: int = 0
+    pending_urls: int = 0
+    processed_urls: int = 0
+    indexed_urls: int = 0
+    failed_urls: int = 0
+    current_batch: int = 0
+    total_batches: int = 0
+    last_completed_batch: int = 0
+    stop_reason: str = ""
+    ingestion_pid: int | None = None
 
 
 def website_path(context_id: str) -> Path:
@@ -62,13 +72,13 @@ def create_website_workspace(context_id: str, name: str, url: str) -> WebsiteMet
                 id=data.get("id", context_id),
                 name=data.get("name", name),
                 url=data.get("url", url),
-                status=data.get("status", "ingesting"),
+                status=data.get("status", "discovering"),
                 is_deletable=data.get("is_deletable", True),
             )
         except Exception:
             pass
 
-    meta = WebsiteMetadata(id=context_id, name=name, url=url, status="ingesting")
+    meta = WebsiteMetadata(id=context_id, name=name, url=url, status="discovering")
     mf.write_text(json.dumps(meta.__dict__, ensure_ascii=False, indent=2), encoding="utf-8")
     return meta
 
@@ -87,10 +97,20 @@ def update_metadata(context_id: str, changes: dict[str, object]) -> WebsiteMetad
         id=str(data.get("id", context_id)),
         name=str(data.get("name", "")),
         url=str(data.get("url", "")),
-        status=str(data.get("status", "ingesting")),
+        status=str(data.get("status", "discovering")),
         is_deletable=bool(data.get("is_deletable", True)),
         pages_crawled=int(data.get("pages_crawled", 0)),
         chunks_created=int(data.get("chunks_created", 0)),
+        total_urls=int(data.get("total_urls", 0)),
+        pending_urls=int(data.get("pending_urls", 0)),
+        processed_urls=int(data.get("processed_urls", 0)),
+        indexed_urls=int(data.get("indexed_urls", 0)),
+        failed_urls=int(data.get("failed_urls", 0)),
+        current_batch=int(data.get("current_batch", 0)),
+        total_batches=int(data.get("total_batches", 0)),
+        last_completed_batch=int(data.get("last_completed_batch", 0)),
+        stop_reason=str(data.get("stop_reason", "")),
+        ingestion_pid=data.get("ingestion_pid"),
     )
 
 

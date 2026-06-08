@@ -1,9 +1,10 @@
-"""Discover internal URLs for a website (sitemap seed + shallow BFS)."""
+"""Discover internal URLs for a website (sitemap seed + bounded BFS)."""
 
 from __future__ import annotations
 
 import time
 from collections import deque
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -11,54 +12,28 @@ import requests
 from bs4 import BeautifulSoup
 from requests import RequestException
 
-from src.config.settings import MAX_RETRIES, REQUEST_TIMEOUT
-from src.ingestion.sitemap import parse_sitemap
+from src.config.settings import DISCOVERY_MAX_DEPTH, DISCOVERY_MAX_PAGES, MAX_RETRIES, REQUEST_TIMEOUT
+from src.ingestion.sitemap import filter_english_urls, parse_sitemap
 from src.utils.logging import close_logger, get_logger
 from src.utils.url import (
     DEFAULT_BROWSER_HEADERS,
     is_asset_url,
+    is_english_url,
     is_same_domain,
+    is_english_html_lang,
     normalize_url,
+    looks_like_english_text,
     sitemap_url_for_root,
 )
 
-NON_ENGLISH_PREFIXES = {
-    "ar",
-    "bg",
-    "cs",
-    "da",
-    "de",
-    "el",
-    "es",
-    "et",
-    "fi",
-    "fr",
-    "he",
-    "hi",
-    "hr",
-    "hu",
-    "id",
-    "it",
-    "ja",
-    "ko",
-    "lt",
-    "lv",
-    "ms",
-    "nl",
-    "no",
-    "pl",
-    "pt",
-    "ro",
-    "ru",
-    "sk",
-    "sl",
-    "sv",
-    "th",
-    "tr",
-    "uk",
-    "vi",
-    "zh",
-}
+
+@dataclass(frozen=True)
+class DiscoveryResult:
+    urls: list[str]
+    stop_reason: str | None
+    total_discovered: int
+    max_depth: int
+    max_pages: int
 
 
 def _setup_logger(logs_dir: Path | None):
@@ -83,7 +58,14 @@ def _fetch(session: requests.Session, url: str, *, timeout: int, max_retries: in
             if response.status_code == 200 and "html" in response.headers.get("Content-Type", "").lower():
                 _log(logger, "info", "Fetched %s successfully", url)
                 return response.text
-            _log(logger, "info", "Skipping %s with status=%s content-type=%s", url, response.status_code, response.headers.get("Content-Type", ""))
+            _log(
+                logger,
+                "info",
+                "Skipping %s with status=%s content-type=%s",
+                url,
+                response.status_code,
+                response.headers.get("Content-Type", ""),
+            )
         except RequestException as exc:
             last_error = exc
             if attempt < max_retries:
@@ -104,27 +86,25 @@ def _extract_links(html: str, base_url: str) -> list[str]:
     return links
 
 
-def _is_english_url(url: str, root_netloc: str, language: str = "en") -> bool:
-    parsed = urlparse(url)
-    if not is_same_domain(parsed.netloc, root_netloc):
+def _is_english_rendered_html(html: str) -> bool:
+    soup = BeautifulSoup(html or "", "lxml")
+    html_tag = soup.find("html")
+    if html_tag is None:
         return False
 
-    path = (parsed.path or "").strip("/")
-    if not path:
-        return True
-
-    first_segment = path.split("/", 1)[0].lower()
-    if first_segment in {language.lower(), f"{language.lower()}-us", f"{language.lower()}-gb", "english"}:
-        return True
-    if first_segment in NON_ENGLISH_PREFIXES:
+    lang = str(html_tag.get("lang", "") or "").strip().lower().replace("_", "-")
+    body = soup.body
+    if body is None:
         return False
 
-    host = parsed.netloc.split(":", 1)[0].lower()
-    host_label = host.split(".", 1)[0]
-    if host_label in NON_ENGLISH_PREFIXES and host_label != "www":
-        return False
+    if lang:
+        if not is_english_html_lang(lang):
+            return False
+        text = body.get_text(" ", strip=True)
+        return len(text) >= 50
 
-    return True
+    text = body.get_text(" ", strip=True)
+    return looks_like_english_text(text)
 
 
 def discover_internal_urls(
@@ -134,20 +114,16 @@ def discover_internal_urls(
     request_timeout: int = REQUEST_TIMEOUT,
     max_retries: int = MAX_RETRIES,
     language: str = "en",
-) -> list[str]:
+    max_pages: int = DISCOVERY_MAX_PAGES,
+    max_depth: int = DISCOVERY_MAX_DEPTH,
+) -> DiscoveryResult:
     """Discover internal URLs via sitemap and bounded BFS."""
     parsed_root = urlparse(root_url)
     root_netloc = parsed_root.netloc
     start = normalize_url(root_url)
 
     logger, owns_logger = _setup_logger(logs_dir)
-    _log(
-        logger,
-        "info",
-        "Discovery started root_url=%s language=%s",
-        root_url,
-        language,
-    )
+    _log(logger, "info", "Discovery started root_url=%s language=%s", root_url, language)
     session = requests.Session()
     session.headers.update(DEFAULT_BROWSER_HEADERS)
 
@@ -155,13 +131,10 @@ def discover_internal_urls(
     try:
         sitemap_url = sitemap_url_for_root(root_url)
         _log(logger, "info", "Attempting sitemap discovery from %s", sitemap_url)
-        for raw in parse_sitemap(sitemap_url, timeout=request_timeout, visited=set()):
-            norm = normalize_url(raw)
-            if (
-                is_same_domain(urlparse(norm).netloc, root_netloc)
-                and not is_asset_url(norm)
-                and _is_english_url(norm, root_netloc, language=language)
-            ):
+        sitemap_urls = parse_sitemap(sitemap_url, timeout=request_timeout, visited=set())
+        for norm in filter_english_urls(sitemap_urls):
+            parsed = urlparse(norm)
+            if is_same_domain(parsed.netloc, root_netloc) and not is_asset_url(norm):
                 seeded.append(norm)
                 _log(logger, "info", "Seeded URL accepted: %s", norm)
             else:
@@ -180,22 +153,37 @@ def discover_internal_urls(
         queue.appendleft((start, 0))
 
     results: list[str] = []
+    stop_reason: str | None = None
+
     while queue:
         url, depth = queue.popleft()
-        results.append(url)
+        if url not in results:
+            results.append(url)
         _log(logger, "info", "Discovered URL accepted depth=%s url=%s", depth, url)
+        if len(results) >= max_pages:
+            stop_reason = "max_pages_reached"
+            _log(logger, "warning", "Discovery stopped due to max_pages=%s", max_pages)
+            break
 
         html = _fetch(session, url, timeout=request_timeout, max_retries=max_retries, logger=logger)
         if not html:
             _log(logger, "warning", "No HTML returned for %s", url)
             continue
+        if not _is_english_rendered_html(html):
+            _log(logger, "info", "Rendered HTML rejected by lang/text validation url=%s", url)
+            continue
+        if depth >= max_depth:
+            stop_reason = stop_reason or "max_depth_reached"
+            _log(logger, "warning", "Discovery stopped expanding url=%s due to max_depth=%s", url, max_depth)
+            continue
+
         for href in _extract_links(html, url):
             norm = normalize_url(href)
             parsed = urlparse(norm)
             if (
                 not is_same_domain(parsed.netloc, root_netloc)
                 or is_asset_url(norm)
-                or not _is_english_url(norm, root_netloc, language=language)
+                or not is_english_url(norm)
             ):
                 _log(logger, "info", "Link skipped: %s", norm)
                 continue
@@ -205,7 +193,13 @@ def discover_internal_urls(
             queue.append((norm, depth + 1))
             _log(logger, "info", "Link queued depth=%s url=%s", depth + 1, norm)
 
-    _log(logger, "info", "Discovery finished count=%s", len(results))
+    _log(logger, "info", "Discovery finished count=%s stop_reason=%s", len(results), stop_reason)
     if owns_logger and logger is not None:
         close_logger(logger)
-    return results
+    return DiscoveryResult(
+        urls=results,
+        stop_reason=stop_reason,
+        total_discovered=len(results),
+        max_depth=max_depth,
+        max_pages=max_pages,
+    )

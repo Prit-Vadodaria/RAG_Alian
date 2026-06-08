@@ -1,4 +1,3 @@
-const path = require("path");
 const { successResponse, errorResponse } = require("../utils/apiResponse");
 const contextService = require("../services/context.service");
 
@@ -55,8 +54,34 @@ const getContextStatus = async (req, res, next) => {
     if (typeof info === "string")
       return res.json(successResponse({ status: info }));
     return res.json(
-      successResponse({ status: info.status, logPreview: info.logPreview }),
+      successResponse({ status: info.status, logPreview: info.logPreview, progress: info.progress || {} }),
     );
+  } catch (err) {
+    return next(err);
+  }
+};
+
+const pauseContext = async (req, res, next) => {
+  try {
+    const { contextId } = req.params;
+    if (!contextId) {
+      return res.status(400).json(errorResponse("contextId required"));
+    }
+    const info = await contextService.pauseContext(contextId);
+    return res.json(successResponse(info));
+  } catch (err) {
+    return next(err);
+  }
+};
+
+const resumeContext = async (req, res, next) => {
+  try {
+    const { contextId } = req.params;
+    if (!contextId) {
+      return res.status(400).json(errorResponse("contextId required"));
+    }
+    const info = await contextService.resumeContext(contextId);
+    return res.json(successResponse(info));
   } catch (err) {
     return next(err);
   }
@@ -68,4 +93,6 @@ module.exports = {
   deleteContext,
   getContextStatus,
   getContextDefaults,
+  pauseContext,
+  resumeContext,
 };

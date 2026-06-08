@@ -305,12 +305,11 @@ export default function ContextManager() {
                   onClick={() => handlePause(context)}
                   disabled={
                     updatingId === context.id ||
-                    context.status !== "ingesting" ||
-                    context.status === "ready"
+                    !["discovering", "processing_batch"].includes(String(context.status || "").toLowerCase())
                   }
                   className="button-secondary px-3 py-2 text-xs"
                 >
-                  {updatingId === context.id && context.status === "ingesting" ? (
+                  {updatingId === context.id && ["discovering", "processing_batch"].includes(String(context.status || "").toLowerCase()) ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Pause className="h-4 w-4" />
@@ -322,17 +321,16 @@ export default function ContextManager() {
                   onClick={() => handleResume(context)}
                   disabled={
                     updatingId === context.id ||
-                    context.status !== "paused" ||
-                    context.status === "ready"
+                    String(context.status || "").toLowerCase() !== "paused"
                   }
                   className="button-secondary px-3 py-2 text-xs"
                 >
-                  {updatingId === context.id && context.status === "paused" ? (
+                  {updatingId === context.id && String(context.status || "").toLowerCase() === "paused" ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Play className="h-4 w-4" />
                   )}
-                  Continue
+                  Resume
                 </button>
                 {context.isDeletable && (
                   <button

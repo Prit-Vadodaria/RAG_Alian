@@ -2,21 +2,6 @@
   "version": 1,
   "contexts": [
     {
-      "id": "hansalpatel-tech_5cf3abc9",
-      "name": "hansalpatel.tech",
-      "seed_url": "https://hansalpatel.tech/",
-      "status": "ready",
-      "path": "websites/hansalpatel-tech_5cf3abc9",
-      "is_default": false,
-      "is_deletable": true,
-      "chunking": {
-        "maxChunkTokens": 100,
-        "minChunkTokens": 30,
-        "chunkOverlapTokens": 25
-      },
-      "chunks_created": 5
-    },
-    {
       "id": "aliansoftware-com_9882f140",
       "name": "aliansoftware.com",
       "seed_url": "https://aliansoftware.com/en",
@@ -30,6 +15,54 @@
         "chunkOverlapTokens": 60
       },
       "chunks_created": 751
+    },
+    {
+      "id": "hansalpatel-tech_7ac89f38",
+      "name": "hansalpatel.tech",
+      "seed_url": "https://hansalpatel.tech/",
+      "status": "ready",
+      "path": "websites/hansalpatel-tech_7ac89f38",
+      "is_default": false,
+      "is_deletable": true,
+      "chunking": {
+        "maxChunkTokens": 100,
+        "minChunkTokens": 20,
+        "chunkOverlapTokens": 30
+      },
+      "total_urls": 1,
+      "pending_urls": 0,
+      "processed_urls": 1,
+      "indexed_urls": 1,
+      "failed_urls": 0,
+      "current_batch": 1,
+      "total_batches": 1,
+      "last_completed_batch": 1,
+      "stop_reason": "",
+      "ingestion_pid": 16688
+    },
+    {
+      "id": "www-minimalist-ae_dc92ddd3",
+      "name": "www.minimalist.ae",
+      "seed_url": "https://www.minimalist.ae/",
+      "status": "partially_ready",
+      "path": "websites/www-minimalist-ae_dc92ddd3",
+      "is_default": false,
+      "is_deletable": true,
+      "chunking": {
+        "maxChunkTokens": 600,
+        "minChunkTokens": 250,
+        "chunkOverlapTokens": 120
+      },
+      "total_urls": 250,
+      "pending_urls": 50,
+      "processed_urls": 200,
+      "indexed_urls": 199,
+      "failed_urls": 1,
+      "current_batch": 3,
+      "total_batches": 3,
+      "last_completed_batch": 2,
+      "stop_reason": "max_pages_reached",
+      "ingestion_pid": 14560
     }
   ]
 }

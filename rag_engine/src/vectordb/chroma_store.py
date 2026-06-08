@@ -76,6 +76,23 @@ def index_exported_chunks(
         metadata_overrides=metadata_overrides,
         chunk_id_prefix=chunk_id_prefix,
     )
+    return index_chunk_records(
+        records,
+        chroma_dir=chroma_dir,
+        collection_name=collection_name,
+        embedder=embedder,
+        batch_size=batch_size,
+    )
+
+
+def index_chunk_records(
+    records: list[ChunkRecord],
+    *,
+    chroma_dir: Path = CHROMA_DIR,
+    collection_name: str = CHROMA_COLLECTION,
+    embedder: Embedder | None = None,
+    batch_size: int = 64,
+) -> IndexSummary:
     store = ChromaStore(chroma_dir=chroma_dir, collection_name=collection_name)
     active_embedder = embedder or SentenceTransformerEmbedder(EMBEDDING_MODEL)
     indexed = store.upsert_chunks(records, active_embedder, batch_size=batch_size)

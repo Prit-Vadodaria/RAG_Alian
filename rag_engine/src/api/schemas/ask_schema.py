@@ -1,11 +1,34 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from src.api.guardrails import check_text
 
 
 class PromptSettingsSchema(BaseModel):
     role: str = Field(..., min_length=1, max_length=1000)
     constraints: list[str] = Field(default_factory=list)
+
+    @field_validator("role")
+    @classmethod
+    def role_safe(cls, v: str) -> str:
+        check_text(v.strip(), field_name="role")
+        return v.strip()
+
+    @field_validator("constraints")
+    @classmethod
+    def constraints_safe(cls, items: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        for i, item in enumerate(items):
+            if not isinstance(item, str):
+                raise ValueError(f"constraints[{i}] must be a string.")
+            if len(item) > 300:
+                raise ValueError(
+                    f"constraints[{i}] exceeds 300-character limit ({len(item)} chars)."
+                )
+            check_text(item.strip(), field_name=f"constraints[{i}]")
+            cleaned.append(item.strip())
+        return cleaned
 
 
 class AskRequestSchema(BaseModel):

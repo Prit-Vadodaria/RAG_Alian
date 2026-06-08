@@ -6,6 +6,8 @@ const {
   deleteContext,
   getContextStatus,
   getContextDefaults,
+  pauseContext,
+  resumeContext,
 } = require("../controllers/context.controller");
 
 const router = express.Router();
@@ -15,5 +17,7 @@ router.get("/defaults", getContextDefaults);
 router.post("/", createContext);
 router.delete("/:contextId", deleteContext);
 router.get("/:contextId/status", getContextStatus);
+router.post("/:contextId/pause", pauseContext);
+router.post("/:contextId/resume", resumeContext);
 
 module.exports = router;

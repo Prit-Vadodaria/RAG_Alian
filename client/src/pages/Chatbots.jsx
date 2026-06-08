@@ -36,7 +36,10 @@ function Chatbots() {
   const availableContexts = useMemo(
     () =>
       contexts.filter(
-        (context) => String(context.status || "").toLowerCase() === "ready",
+        (context) =>
+          ["ready", "partially_ready"].includes(
+            String(context.status || "").toLowerCase(),
+          ),
       ),
     [contexts],
   );
@@ -313,11 +316,6 @@ function Chatbots() {
                   <p className="mt-1 text-xs text-[color:var(--body)]">
                     context: {chatbot.primary_context_id || "unassigned"}
                   </p>
-                  {chatbot.reindex_error ? (
-                    <p className="mt-1 max-w-[32rem] text-xs text-[color:var(--error)]">
-                      {chatbot.reindex_error}
-                    </p>
-                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button

@@ -336,11 +336,19 @@ select:focus-visible,
   color: #c8e6d1;
 }
 
+.status-pill[data-status="discovering"],
+.status-pill[data-status="processing_batch"],
 .status-pill[data-status="ingesting"],
 .status-pill[data-status="processing"] {
   border-color: rgba(184, 132, 45, 0.22);
   background: rgba(184, 132, 45, 0.14);
   color: #efd6a8;
+}
+
+.status-pill[data-status="partially_ready"] {
+  border-color: rgba(80, 141, 170, 0.22);
+  background: rgba(80, 141, 170, 0.14);
+  color: #bcddec;
 }
 
 .status-pill[data-status="paused"] {

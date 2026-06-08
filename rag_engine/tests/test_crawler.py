@@ -13,7 +13,12 @@ from src.ingestion.crawler import crawl_urls, load_crawl_manifest, output_path_f
 
 class FakeCrawler:
     def crawl_page_with_retries(self, url: str) -> str:
-        return f"<html><body>{url}</body></html>"
+        body = (
+            f"{url} content for testing. "
+            "This is a sufficiently long English paragraph used to validate the crawler output. "
+            "It contains enough meaningful text to pass the minimum text threshold. "
+        ) * 4
+        return f"<html lang='en'><head><title>Test</title></head><body><main><p>{body}</p></main></body></html>"
 
 
 class CrawlerTests(unittest.TestCase):
@@ -35,13 +40,35 @@ class CrawlerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = save_raw_html(
                 "https://example.com/en/about",
-                "<html></html>",
+                "<html lang='en'><head><title>About</title></head><body><main><p>"
+                + (
+                    "Valid content for testing. "
+                    "This paragraph is long enough to pass validation and demonstrates a real rendered page. "
+                    * 4
+                )
+                + "</p></main></body></html>",
                 Path(temp_dir),
             )
 
             content = output_path.read_text(encoding="utf-8")
             self.assertIn("source_url: https://example.com/en/about", content)
-            self.assertIn("<html></html>", content)
+            self.assertIn("lang=", content)
+
+    def test_save_raw_html_accepts_missing_lang_with_english_text(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = save_raw_html(
+                "https://example.com/about",
+                "<html><head><title>About</title></head><body><main><p>"
+                + (
+                    "This page contains clear English content for the crawler to validate. "
+                    "It does not depend on an html lang attribute, but the body text is still meaningful. "
+                    * 4
+                )
+                + "</p></main></body></html>",
+                Path(temp_dir),
+            )
+
+            self.assertTrue(output_path.exists())
 
     def test_crawl_urls_saves_html_with_injected_crawler(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

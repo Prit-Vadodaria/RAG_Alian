@@ -20,6 +20,7 @@ function Settings() {
   const [role, setRole] = useState("");
   const [constraintsText, setConstraintsText] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     loadSettings();
@@ -52,9 +53,16 @@ function Settings() {
     if (!isEditing || !isDirty) return;
 
     const constraints = normalizeConstraints(constraintsText);
-    await saveSettings({ role: role.trim(), constraints });
-    setIsEditing(false);
-    showToast("Prompt settings saved.", "success");
+    setSaveError("");
+    try {
+      await saveSettings({ role: role.trim(), constraints });
+      setIsEditing(false);
+      showToast("Prompt settings saved.", "success");
+    } catch (error) {
+      const message = error.message || String(error);
+      setSaveError(message);
+      showToast(`Failed to save prompt settings: ${message}`, "error");
+    }
   };
 
   const handleReset = async () => {
@@ -139,6 +147,9 @@ function Settings() {
               Reset Defaults
             </button>
           </div>
+          {saveError && (
+            <p className="text-sm text-[color:var(--error)]">{saveError}</p>
+          )}
         </div>
       </SectionCard>
 

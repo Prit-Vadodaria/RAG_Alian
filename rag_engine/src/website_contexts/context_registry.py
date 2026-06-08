@@ -12,8 +12,9 @@ from src.utils.url import normalize_url, urls_equivalent
 REGISTRY_PATH = BASE_DIR / "context_registry.json"
 
 READY_STATUSES = frozenset({"ready"})
-ACTIVE_INGEST_STATUSES = frozenset({"ingesting"})
-BLOCKED_RETRIEVAL_STATUSES = frozenset({"ingesting", "deleting", "failed"})
+ACTIVE_INGEST_STATUSES = frozenset({"discovering", "processing_batch"})
+RETRIEVAL_READY_STATUSES = frozenset({"partially_ready", "ready"})
+BLOCKED_RETRIEVAL_STATUSES = frozenset({"discovering", "processing_batch", "paused", "failed", "deleting", "ingesting"})
 
 
 def _default_registry() -> dict[str, Any]:
@@ -98,7 +99,7 @@ def find_by_seed_url(seed_url: str) -> dict[str, Any] | None:
 def list_ready_website_contexts() -> list[dict[str, Any]]:
     ready: list[dict[str, Any]] = []
     for entry in list_contexts():
-        if entry.get("status") not in READY_STATUSES:
+        if entry.get("status") not in RETRIEVAL_READY_STATUSES:
             continue
         ready.append(entry)
     return ready

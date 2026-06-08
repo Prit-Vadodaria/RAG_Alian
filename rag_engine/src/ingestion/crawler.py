@@ -31,6 +31,7 @@ from src.config.settings import (
     RESPECT_ROBOTS_TXT,
     SITEMAP_URLS_FILE,
 )
+from src.utils.url import is_english_html_lang, looks_like_english_text
 from src.utils.logging import close_logger, get_logger
 
 DEFAULT_USER_AGENT = (
@@ -58,6 +59,8 @@ BLOCKED_CONTENT_PATTERNS = (
 )
 MIN_SAVED_HTML_LENGTH = 5000
 MIN_SAVED_TEXT_LENGTH = 200
+MIN_DOM_NODES = 20
+MIN_BODY_TEXT_LENGTH = 200
 RETRYABLE_BROWSER_ERROR_PATTERNS = (
     "timeout",
     "navigation",
@@ -200,9 +203,17 @@ class WebsiteCrawler:
         page = self.context.new_page()
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=self.timeout_ms)
-            page.wait_for_timeout(3000)
+            try:
+                page.wait_for_load_state("networkidle", timeout=min(self.timeout_ms, 15000))
+            except Exception:
+                pass
+            self._wait_for_dom_stability(page)
             self._auto_scroll(page)
-            page.wait_for_timeout(1000)
+            try:
+                page.wait_for_load_state("networkidle", timeout=min(self.timeout_ms, 15000))
+            except Exception:
+                pass
+            self._wait_for_dom_stability(page)
             return page.content()
         finally:
             page.close()
@@ -253,6 +264,23 @@ class WebsiteCrawler:
                     }""",
                 )
                 page.wait_for_timeout(500)
+        except Exception:
+            return
+
+    def _wait_for_dom_stability(self, page) -> None:
+        try:
+            previous = ""
+            for _ in range(4):
+                current = page.evaluate(
+                    """() => {
+                        const body = document.body ? document.body.innerText || '' : '';
+                        return body.trim().slice(0, 20000);
+                    }""",
+                )
+                if current == previous and current:
+                    return
+                previous = current
+                page.wait_for_timeout(750)
         except Exception:
             return
 
@@ -584,20 +612,42 @@ def _clean_html_for_save(html: str) -> str:
 
 
 def _validate_saved_html(url: str, html: str) -> None:
+    soup = BeautifulSoup(html, "html.parser")
     lower_html = html.lower()
     if len(html.strip()) < MIN_SAVED_HTML_LENGTH:
         raise NonRetryableCrawlError(f"Page content too small for {url}")
 
+    if soup.find("html") is None or soup.find("head") is None or soup.find("body") is None:
+        raise NonRetryableCrawlError(f"Invalid rendered HTML structure for {url}")
+
+    if len(soup.find_all(True)) < MIN_DOM_NODES:
+        raise NonRetryableCrawlError(f"Rendered DOM too small for {url}")
+
+    html_tag = soup.find("html")
+    if html_tag is None:
+        raise NonRetryableCrawlError(f"Invalid rendered HTML structure for {url}")
+
+    lang = html_tag.get("lang")
+    body = soup.body
+    if body is None:
+        raise NonRetryableCrawlError(f"Invalid rendered HTML structure for {url}")
+
+    if lang and not is_english_html_lang(lang):
+        raise NonRetryableCrawlError(f"Non-English or missing html lang for {url}")
+
     if any(pattern in lower_html for pattern in BLOCKED_CONTENT_PATTERNS):
         raise NonRetryableCrawlError(f"Blocked or challenge page detected for {url}")
 
-    text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
-    if len(text) < MIN_SAVED_TEXT_LENGTH:
+    text = body.get_text(" ", strip=True)
+    if len(text) < MIN_SAVED_TEXT_LENGTH or len(text) < MIN_BODY_TEXT_LENGTH:
         raise NonRetryableCrawlError(f"Page text too small for {url}")
 
     visible_text = text.lower()
     if any(pattern in visible_text for pattern in BLOCKED_CONTENT_PATTERNS):
         raise NonRetryableCrawlError(f"Blocked or challenge page detected for {url}")
+
+    if not lang and not looks_like_english_text(text):
+        raise NonRetryableCrawlError(f"Non-English or missing html lang for {url}")
 
 
 def _is_retryable_browser_error(exc: Exception) -> bool:

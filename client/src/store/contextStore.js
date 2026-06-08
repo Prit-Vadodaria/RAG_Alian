@@ -14,7 +14,7 @@ export const useContextStore = create((set, get) => ({
     try {
       const contexts = await contextApi.getContexts();
       const ready = contexts.filter(
-        (c) => (c.status || "").toLowerCase() === "ready",
+        (c) => ["ready", "partially_ready"].includes((c.status || "").toLowerCase()),
       );
       set((state) => {
         let selectedContext = state.selectedContext;
@@ -38,9 +38,18 @@ export const useContextStore = create((set, get) => ({
         name: url,
         isDefault: false,
         isDeletable: true,
-        status: data.status || "ingesting",
+        status: data.status || "discovering",
         seed_url: url,
         chunking: data.chunking || options?.chunking || null,
+        total_urls: 0,
+        pending_urls: 0,
+        processed_urls: 0,
+        indexed_urls: 0,
+        failed_urls: 0,
+        current_batch: 0,
+        total_batches: 0,
+        last_completed_batch: 0,
+        stop_reason: "",
       };
       set((state) => ({
         contexts: [...(state.contexts || []), newContext],
@@ -72,12 +81,13 @@ export const useContextStore = create((set, get) => ({
       if (!info) return null;
       const status = info.status || info;
       const logPreview = info.logPreview || null;
+      const progress = info.progress || {};
       set((state) => ({
         contexts: (state.contexts || []).map((c) =>
-          c.id === contextId ? { ...c, status, logPreview } : c,
+          c.id === contextId ? { ...c, status, logPreview, ...progress } : c,
         ),
       }));
-      return { status, logPreview };
+      return { status, logPreview, progress };
     } catch (err) {
       return null;
     }
@@ -104,6 +114,28 @@ export const useContextStore = create((set, get) => ({
       return null;
     }
   },
+  pauseContext: async (id) => {
+    const info = await contextApi.pauseContext(id);
+    set((state) => ({
+      contexts: (state.contexts || []).map((c) =>
+        c.id === id
+          ? { ...c, ...(info || {}), ...(info?.progress || {}), status: info?.status || "paused" }
+          : c,
+      ),
+    }));
+    return info;
+  },
+  resumeContext: async (id) => {
+    const info = await contextApi.resumeContext(id);
+    set((state) => ({
+      contexts: (state.contexts || []).map((c) =>
+        c.id === id
+          ? { ...c, ...(info || {}), ...(info?.progress || {}), status: info?.status || "processing_batch" }
+          : c,
+      ),
+    }));
+    return info;
+  },
   pollContextReady: async (contextId, contextName) => {
     const retryDelay = 4000;
     const maxAttempts = 30;
@@ -115,12 +147,12 @@ export const useContextStore = create((set, get) => ({
       const status = (info.status || info).toLowerCase();
       get().setContextStatus(contextId, status, info.logPreview || null);
 
-      if (status === "ready") {
+      if (status === "ready" || status === "partially_ready") {
         get().showToast(`Context '${contextName}' is ready.`, "success");
         return;
       }
 
-      if (status === "failed" || status === "deleting") {
+      if (status === "failed" || status === "deleting" || status === "paused") {
         return;
       }
 

@@ -4,7 +4,7 @@ import { useContextStore } from "../../store/contextStore";
 
 function isReadyContext(context) {
   const status = (context?.status || "").toLowerCase();
-  return status === "ready";
+  return status === "ready" || status === "partially_ready";
 }
 
 export default function ContextSelector() {

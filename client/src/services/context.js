@@ -61,6 +61,16 @@ export const deleteContext = async (contextId) => {
   return res.data?.data;
 };
 
+export const pauseContext = async (contextId) => {
+  const res = await client.post(`/contexts/${encodeURIComponent(contextId)}/pause`);
+  return res.data?.data;
+};
+
+export const resumeContext = async (contextId) => {
+  const res = await client.post(`/contexts/${encodeURIComponent(contextId)}/resume`);
+  return res.data?.data;
+};
+
 export const getContextStatus = async (contextId) => {
   const res = await client.get(
     `/contexts/${encodeURIComponent(contextId)}/status`,
@@ -73,5 +83,7 @@ export default {
   getContextDefaults,
   createContext,
   deleteContext,
+  pauseContext,
+  resumeContext,
   getContextStatus,
 };

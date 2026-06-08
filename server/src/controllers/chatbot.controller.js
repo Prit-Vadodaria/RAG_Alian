@@ -108,26 +108,6 @@ const exportSnippet = async (req, res, next) => {
   }
 };
 
-const reindexChatbot = async (req, res, next) => {
-  try {
-    const chatbot = chatbotService.getChatbot(req.params.chatbotId);
-    if (!chatbot) {
-      return res.status(404).json(errorResponse("Chatbot not found."));
-    }
-    const result = await chatbotService.reindexChatbot(chatbot.id);
-    return res.status(result ? 200 : 404).json(
-      successResponse({
-        chatbot_id: chatbot.id,
-        reindex_status: result?.status || "failed",
-        chroma_dir: result?.chroma_dir || chatbot.chroma_dir,
-        collection_name: result?.collection_name || chatbot.collection_name,
-      }),
-    );
-  } catch (error) {
-    return next(error);
-  }
-};
-
 module.exports = {
   listChatbots,
   createChatbot,
@@ -137,5 +117,4 @@ module.exports = {
   enableChatbot,
   deleteChatbot,
   exportSnippet,
-  reindexChatbot,
 };

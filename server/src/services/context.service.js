@@ -13,8 +13,11 @@ const DEFAULT_CHUNKING = Object.freeze({
   chunkOverlapTokens: 25,
 });
 
+const DISCOVERING = "discovering";
+const PROCESSING_BATCH = "processing_batch";
+const PARTIALLY_READY = "partially_ready";
 const READY = "ready";
-const INGESTING = "ingesting";
+const PAUSED = "paused";
 const DELETING = "deleting";
 const FAILED = "failed";
 
@@ -50,7 +53,6 @@ function _pythonExec() {
   return "python";
 }
 
-/** Background jobs: pythonw on Windows avoids a visible console window. */
 function _pythonExecBackground() {
   if (process.platform === "win32") {
     const pythonw = path.join(RAG_ENGINE_DIR, ".venv/Scripts/pythonw.exe");
@@ -59,8 +61,7 @@ function _pythonExecBackground() {
   return _pythonExec();
 }
 
-const CREATE_NO_WINDOW =
-  process.platform === "win32" ? 0x08000000 : 0;
+const CREATE_NO_WINDOW = process.platform === "win32" ? 0x08000000 : 0;
 
 function _spawnBackgroundOptions(logPath) {
   const logFd = fs.openSync(logPath, "a");
@@ -92,10 +93,7 @@ function _spawnSyncOptions() {
 
 function _readRegistry() {
   if (!fs.existsSync(REGISTRY_PATH)) {
-    return {
-      version: 1,
-      contexts: [],
-    };
+    return { version: 1, contexts: [] };
   }
   try {
     const parsed = JSON.parse(fs.readFileSync(REGISTRY_PATH, "utf8"));
@@ -111,17 +109,38 @@ function _writeRegistry(data) {
   fs.writeFileSync(REGISTRY_PATH, JSON.stringify(data, null, 2), "utf8");
 }
 
+function _normalizeStatus(status) {
+  const value = String(status || "").toLowerCase();
+  if (value === "processing") return PROCESSING_BATCH;
+  if (value === "ingesting") return DISCOVERING;
+  if (value === "partial") return PARTIALLY_READY;
+  if (value === "pause") return PAUSED;
+  if ([DISCOVERING, PROCESSING_BATCH, PARTIALLY_READY, READY, PAUSED, FAILED, DELETING].includes(value)) {
+    return value;
+  }
+  return value || DISCOVERING;
+}
+
 function _mapEntry(entry) {
-  const status = entry.status === "processing" ? INGESTING : entry.status;
   return {
     id: entry.id,
     name: entry.name || entry.id,
     seed_url: entry.seed_url || "",
-    status,
+    status: _normalizeStatus(entry.status),
     path: entry.path || "",
     isDefault: Boolean(entry.is_default),
     isDeletable: entry.is_deletable !== false,
     chunking: _normalizeChunkingConfig(entry.chunking, DEFAULT_CHUNKING),
+    total_urls: Number(entry.total_urls || 0),
+    pending_urls: Number(entry.pending_urls || 0),
+    processed_urls: Number(entry.processed_urls || 0),
+    indexed_urls: Number(entry.indexed_urls || 0),
+    failed_urls: Number(entry.failed_urls || 0),
+    current_batch: Number(entry.current_batch || 0),
+    total_batches: Number(entry.total_batches || 0),
+    last_completed_batch: Number(entry.last_completed_batch || 0),
+    stop_reason: String(entry.stop_reason || ""),
+    ingestion_pid: Number.isFinite(Number(entry.ingestion_pid)) ? Number(entry.ingestion_pid) : null,
   };
 }
 
@@ -131,17 +150,64 @@ function ensureWebsitesDir() {
   }
 }
 
+function _contextDir(contextId) {
+  return path.join(RAG_WEBSITES_DIR, contextId);
+}
+
+function _metadataPath(contextId) {
+  return path.join(_contextDir(contextId), "metadata.json");
+}
+
+function _pauseFlagPath(contextId) {
+  return path.join(_contextDir(contextId), "pause.flag");
+}
+
+function _isProcessRunning(pid) {
+  const numericPid = Number(pid);
+  if (!Number.isFinite(numericPid) || numericPid <= 0) return false;
+  try {
+    process.kill(numericPid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function _updateMetadata(contextId, changes) {
+  const metaPath = _metadataPath(contextId);
+  let data = {};
+  if (fs.existsSync(metaPath)) {
+    try {
+      data = JSON.parse(fs.readFileSync(metaPath, "utf8"));
+    } catch {
+      data = {};
+    }
+  }
+  data = { ...data, ...changes };
+  fs.writeFileSync(metaPath, JSON.stringify(data, null, 2), "utf8");
+}
+
+function _writeRegistryEntryStatus(contextId, status, extra = {}) {
+  const registry = _readRegistry();
+  registry.contexts = (registry.contexts || []).map((entry) =>
+    entry.id === contextId ? { ...entry, status, ...extra } : entry,
+  );
+  _writeRegistry(registry);
+}
+
 function listContexts() {
   ensureWebsitesDir();
   const registry = _readRegistry();
   return (registry.contexts || []).map(_mapEntry);
 }
 
+function getContext(contextId) {
+  return listContexts().find((context) => context.id === contextId) || null;
+}
+
 function _findDuplicateSeedUrl(seedUrl) {
   const normalized = _normalizeUrl(seedUrl);
-  return (listContexts() || []).find(
-    (ctx) => ctx.seed_url && _normalizeUrl(ctx.seed_url) === normalized,
-  );
+  return listContexts().find((ctx) => ctx.seed_url && _normalizeUrl(ctx.seed_url) === normalized);
 }
 
 function _isLocalOrPrivateHostname(hostname) {
@@ -183,12 +249,17 @@ function _normalizeChunkingConfig(chunking, fallback = DEFAULT_CHUNKING) {
 
 function _spawnDetached(args, logPath) {
   fs.mkdirSync(path.dirname(logPath), { recursive: true });
-  const child = spawn(
-    _pythonExecBackground(),
-    args,
-    _spawnBackgroundOptions(logPath),
-  );
+  const child = spawn(_pythonExecBackground(), args, _spawnBackgroundOptions(logPath));
   child.unref();
+  return child.pid;
+}
+
+function _refreshRegistryContext(contextId, changes) {
+  const registry = _readRegistry();
+  registry.contexts = (registry.contexts || []).map((entry) =>
+    entry.id === contextId ? { ...entry, ...changes } : entry,
+  );
+  _writeRegistry(registry);
 }
 
 function createContext(url, options = {}) {
@@ -228,7 +299,7 @@ function createContext(url, options = {}) {
   const chunking = _normalizeChunkingConfig(options.chunking, DEFAULT_CHUNKING);
 
   fs.mkdirSync(ctxDir, { recursive: true });
-  for (const sub of ["raw", "chunks", "embeddings", "logs"]) {
+  for (const sub of ["raw", "chunks", "embeddings", "logs", "cleaned_markdown", "structured_docs"]) {
     fs.mkdirSync(path.join(ctxDir, sub), { recursive: true });
   }
 
@@ -237,16 +308,22 @@ function createContext(url, options = {}) {
     name: parsed.hostname,
     url,
     seed_url: url,
-    status: INGESTING,
+    status: DISCOVERING,
     is_deletable: true,
     chunking,
     created_at: new Date().toISOString(),
+    total_urls: 0,
+    pending_urls: 0,
+    processed_urls: 0,
+    indexed_urls: 0,
+    failed_urls: 0,
+    current_batch: 0,
+    total_batches: 0,
+    last_completed_batch: 0,
+    stop_reason: "",
+    ingestion_pid: null,
   };
-  fs.writeFileSync(
-    path.join(ctxDir, "metadata.json"),
-    JSON.stringify(metadata, null, 2),
-    "utf8",
-  );
+  fs.writeFileSync(path.join(ctxDir, "metadata.json"), JSON.stringify(metadata, null, 2), "utf8");
 
   const registry = _readRegistry();
   registry.contexts = registry.contexts || [];
@@ -254,22 +331,34 @@ function createContext(url, options = {}) {
     id,
     name: parsed.hostname,
     seed_url: url,
-    status: INGESTING,
+    status: DISCOVERING,
     path: relPath.replace(/\\/g, "/"),
     is_default: false,
     is_deletable: true,
     chunking,
+    total_urls: 0,
+    pending_urls: 0,
+    processed_urls: 0,
+    indexed_urls: 0,
+    failed_urls: 0,
+    current_batch: 0,
+    total_batches: 0,
+    last_completed_batch: 0,
+    stop_reason: "",
+    ingestion_pid: null,
   });
   _writeRegistry(registry);
 
   try {
     const logPath = path.join(ctxDir, "logs", "ingest.log");
-    _spawnDetached(["-m", "src.website_contexts.ingest_cli", id, url], logPath);
+    const pid = _spawnDetached(["-m", "src.website_contexts.ingest_cli", id, url], logPath);
+    _refreshRegistryContext(id, { ingestion_pid: pid, status: DISCOVERING });
+    _updateMetadata(id, { ingestion_pid: pid, status: DISCOVERING });
   } catch {
-    // ingestion may be retried manually; registry remains ingesting
+    // ingestion may be retried manually; registry remains discovering
   }
 
-  return { contextId: id, status: INGESTING };
+  return { contextId: id, status: DISCOVERING };
 }
 
 function getContextDefaults() {
@@ -279,7 +368,7 @@ function getContextDefaults() {
 }
 
 function getContextStatus(contextId) {
-  const entry = listContexts().find((ctx) => ctx.id === contextId);
+  const entry = getContext(contextId);
   if (!entry) return null;
 
   const logsDir = path.join(RAG_WEBSITES_DIR, contextId, "logs");
@@ -302,7 +391,21 @@ function getContextStatus(contextId) {
     logPreview = null;
   }
 
-  return { status: entry.status, logPreview };
+  return {
+    status: entry.status,
+    logPreview,
+    progress: {
+      total_urls: Number(entry.total_urls || 0),
+      pending_urls: Number(entry.pending_urls || 0),
+      processed_urls: Number(entry.processed_urls || 0),
+      indexed_urls: Number(entry.indexed_urls || 0),
+      failed_urls: Number(entry.failed_urls || 0),
+      current_batch: Number(entry.current_batch || 0),
+      total_batches: Number(entry.total_batches || 0),
+      last_completed_batch: Number(entry.last_completed_batch || 0),
+      stop_reason: String(entry.stop_reason || ""),
+    },
+  };
 }
 
 function _updateRegistryStatus(contextId, status) {
@@ -311,6 +414,55 @@ function _updateRegistryStatus(contextId, status) {
     entry.id === contextId ? { ...entry, status } : entry,
   );
   _writeRegistry(registry);
+}
+
+function pauseContext(contextId) {
+  ensureWebsitesDir();
+  const ctxDir = _contextDir(contextId);
+  if (!fs.existsSync(ctxDir)) {
+    const error = new Error("Context not found");
+    error.status = 404;
+    throw error;
+  }
+
+  fs.mkdirSync(path.dirname(_pauseFlagPath(contextId)), { recursive: true });
+  fs.writeFileSync(_pauseFlagPath(contextId), new Date().toISOString(), "utf8");
+  _updateRegistryStatus(contextId, PAUSED);
+  _updateMetadata(contextId, { status: PAUSED });
+  return getContextStatus(contextId);
+}
+
+function resumeContext(contextId) {
+  ensureWebsitesDir();
+  const entry = getContext(contextId);
+  if (!entry) {
+    const error = new Error("Context not found");
+    error.status = 404;
+    throw error;
+  }
+
+  const ctxDir = _contextDir(contextId);
+  if (!fs.existsSync(ctxDir)) {
+    const error = new Error("Context directory missing");
+    error.status = 404;
+    throw error;
+  }
+
+  if (fs.existsSync(_pauseFlagPath(contextId))) {
+    fs.unlinkSync(_pauseFlagPath(contextId));
+  }
+
+  if (!_isProcessRunning(entry.ingestion_pid)) {
+    const logPath = path.join(ctxDir, "logs", "ingest.log");
+    const pid = _spawnDetached(["-m", "src.website_contexts.ingest_cli", contextId, entry.seed_url || entry.url || ""], logPath);
+    _refreshRegistryContext(contextId, { ingestion_pid: pid, status: PROCESSING_BATCH });
+    _updateMetadata(contextId, { ingestion_pid: pid, status: PROCESSING_BATCH });
+  } else {
+    _refreshRegistryContext(contextId, { status: PROCESSING_BATCH });
+    _updateMetadata(contextId, { status: PROCESSING_BATCH });
+  }
+
+  return getContextStatus(contextId);
 }
 
 function deleteContext(contextId) {
@@ -382,8 +534,11 @@ function deleteContext(contextId) {
 
 module.exports = {
   listContexts,
+  getContext,
   createContext,
   deleteContext,
   getContextStatus,
   getContextDefaults,
+  pauseContext,
+  resumeContext,
 };
