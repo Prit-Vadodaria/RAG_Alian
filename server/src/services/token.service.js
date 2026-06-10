@@ -8,7 +8,7 @@ const {
   DEFAULT_COOLDOWN_MINUTES,
 } = require("../config/env");
 
-const DATA_DIR = path.resolve(__dirname, "../../../data");
+const DATA_DIR = path.resolve(__dirname, "../../data");
 const TOKEN_EVENTS_PATH = path.join(DATA_DIR, "token_events.json");
 const DAILY_USAGE_PATH = path.join(DATA_DIR, "daily_usage.json");
 const QUOTA_STATE_PATH = path.join(DATA_DIR, "quota_state.json");

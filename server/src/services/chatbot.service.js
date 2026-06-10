@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const DATA_DIR = path.resolve(__dirname, "../../../data");
+const DATA_DIR = path.resolve(__dirname, "../../data");
 const CHATBOTS_PATH = path.join(DATA_DIR, "chatbots.json");
 const CHATBOT_LOG_DIR = path.join(DATA_DIR, "chatbots");
 const WEBSITE_CHROMA_COLLECTION = "website_rag_bge_base_v1";

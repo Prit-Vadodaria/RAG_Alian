@@ -92,9 +92,9 @@ Thumbs.db
 desktop.ini
 
 # ============================================
-# RAG Engine Data
+# Server Data
 # ============================================
-data/
+server/data/
 rag_engine/data/raw/
 rag_engine/data/raw_html/
 rag_engine/data/logs/
