@@ -141,3 +141,5 @@ test_embed_code/
 .#*
 #*#
 *.zip
+context_registry.json
+prompt_settings.json
