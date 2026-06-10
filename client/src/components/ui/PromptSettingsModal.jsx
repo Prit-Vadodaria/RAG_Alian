@@ -1,10 +1,40 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function normalizeConstraints(text) {
   return text
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+function isUsingDefaultPromptSettings(settings, defaults) {
+  const currentRole = String(settings?.role || "").trim();
+  const defaultRole = String(defaults?.role || "").trim();
+  const currentConstraints = normalizeConstraints(
+    (settings?.constraints || []).join("\n"),
+  );
+  const defaultConstraints = normalizeConstraints(
+    (defaults?.constraints || []).join("\n"),
+  );
+
+  if (currentRole !== defaultRole) return false;
+  if (currentConstraints.length !== defaultConstraints.length) return false;
+  return currentConstraints.every(
+    (line, index) => line === defaultConstraints[index],
+  );
+}
+
+function isDefaultRoleValue(role, defaults) {
+  return String(role || "").trim() === String(defaults?.role || "").trim();
+}
+
+function isDefaultConstraintsValue(constraintsText, defaults) {
+  const currentConstraints = normalizeConstraints(constraintsText || "");
+  const defaultConstraints = normalizeConstraints(
+    (defaults?.constraints || []).join("\n"),
+  );
+  if (currentConstraints.length !== defaultConstraints.length) return false;
+  return currentConstraints.every((line, index) => line === defaultConstraints[index]);
 }
 
 export default function PromptSettingsModal({
@@ -20,12 +50,27 @@ export default function PromptSettingsModal({
   const [constraintsText, setConstraintsText] = useState(
     (settings.constraints || []).join("\n"),
   );
+  const baselineRef = useRef({
+    role: settings.role || "",
+    constraintsText: (settings.constraints || []).join("\n"),
+  });
+
+  const draftUsesDefaults = isUsingDefaultPromptSettings(
+    { role, constraints: normalizeConstraints(constraintsText) },
+    defaults,
+  );
+  const hideRoleValue = isDefaultRoleValue(role, defaults);
+  const hideConstraintsValue = isDefaultConstraintsValue(constraintsText, defaults);
 
   const handleResetDefaults = () => {
     const defaultRole = defaults.role || "";
     const defaultConstraints = (defaults.constraints || []).join("\n");
     setRole(defaultRole);
     setConstraintsText(defaultConstraints);
+    baselineRef.current = {
+      role: defaultRole,
+      constraintsText: defaultConstraints,
+    };
 
     if (onReset) {
       onReset({
@@ -43,9 +88,15 @@ export default function PromptSettingsModal({
 
   useEffect(() => {
     if (!open) return;
-    setRole(settings.role || "");
-    setConstraintsText((settings.constraints || []).join("\n"));
-  }, [open, settings]);
+    const nextRole = settings.role || "";
+    const nextConstraintsText = (settings.constraints || []).join("\n");
+    setRole(nextRole);
+    setConstraintsText(nextConstraintsText);
+    baselineRef.current = {
+      role: nextRole,
+      constraintsText: nextConstraintsText,
+    };
+  }, [open, settings, defaults]);
 
   if (!open) return null;
 
@@ -76,10 +127,15 @@ export default function PromptSettingsModal({
               Role
             </label>
             <textarea
-              value={role}
+              value={hideRoleValue ? "" : role}
               onChange={(event) => setRole(event.target.value)}
               rows={3}
               className="field-dark mt-2 w-full px-4 py-3 text-sm"
+              placeholder={
+                draftUsesDefaults
+                  ? "Built-in default role is active."
+                  : "Type a custom role."
+              }
             />
           </div>
 
@@ -88,13 +144,23 @@ export default function PromptSettingsModal({
               Additional constraints (one per line)
             </label>
             <textarea
-              value={constraintsText}
+              value={hideConstraintsValue ? "" : constraintsText}
               onChange={(event) => setConstraintsText(event.target.value)}
               rows={5}
               className="field-dark mt-2 w-full px-4 py-3 text-sm"
+              placeholder={
+                draftUsesDefaults
+                  ? "Built-in default constraints are active."
+                  : "Type custom constraints, one per line."
+              }
             />
           </div>
         </div>
+        <p className="mt-3 text-xs text-[color:var(--muted-soft)]">
+          {draftUsesDefaults
+            ? "Built-in defaults are active."
+            : "Custom prompt settings are active."}
+        </p>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
           <button
@@ -114,12 +180,26 @@ export default function PromptSettingsModal({
             </button>
             <button
               type="button"
-              onClick={() =>
+              onClick={() => {
+                const baselineRole = String(baselineRef.current.role || "").trim();
+                const baselineConstraints = normalizeConstraints(
+                  baselineRef.current.constraintsText || "",
+                );
+                const nextRole = role.trim();
+                const nextConstraints = normalizeConstraints(constraintsText);
+                const resolvedRole = nextRole === baselineRole ? baselineRole : nextRole;
+                const resolvedConstraints =
+                  nextConstraints.length === baselineConstraints.length &&
+                  nextConstraints.every(
+                    (line, index) => line === baselineConstraints[index],
+                  )
+                    ? baselineConstraints
+                    : nextConstraints;
                 onSave({
-                  role: role.trim(),
-                  constraints: normalizeConstraints(constraintsText),
-                })
-              }
+                  role: resolvedRole,
+                  constraints: resolvedConstraints,
+                });
+              }}
               disabled={saving}
               className="button-primary justify-center"
             >

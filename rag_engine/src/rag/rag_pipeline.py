@@ -7,12 +7,26 @@ import time
 from dataclasses import dataclass
 
 from src.config.settings import MAX_CONTEXT_TOKENS
-from src.rag.confidence import confidence_label, compute_confidence_breakdown
+from src.rag.confidence import (
+    confidence_label,
+    compute_confidence_breakdown,
+    compute_rerank_confidence,
+    compute_retrieval_confidence,
+)
 from src.llm.generation import GoogleGenerationBackend, TextGenerationBackend
 from src.rag.context_builder import ContextSource, build_context
-from src.rag.prompt_template import build_grounded_prompt
+from src.rag.prompts import (
+    ResponseMode,
+    build_answer_prompt,
+    build_graceful_fallback,
+    build_recovery_prompt,
+    classify_response_mode,
+    normalize_prompt_config,
+    select_initial_response_mode,
+)
 from src.retrieval.pipeline import FINAL_TOP_K, VECTOR_TOP_K, RetrievalPipeline
 from src.retrieval.reranker import RerankedResult
+from src.llm.google_client import GoogleGenerationResult
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +47,7 @@ class RagMetrics:
 class RagResult:
     query: str
     answer: str
+    response_mode: str
     confidence: float
     confidence_label: str
     confidence_breakdown: dict[str, float]
@@ -75,6 +90,7 @@ class RagPipeline:
     ) -> RagResult:
         pipeline_start = time.perf_counter()
         retrieval_start = time.perf_counter()
+        prompt_config = normalize_prompt_config(prompt_settings)
 
         vector_results, reranked = self.retrieval_pipeline.retrieve(
             query,
@@ -89,22 +105,71 @@ class RagPipeline:
         if final_chunks and not context:
             raise RuntimeError("Final context is empty after building from reranked chunks.")
 
-        prompt = build_grounded_prompt(
-            query,
-            context,
-            role=(prompt_settings or {}).get("role") if prompt_settings else None,
-            additional_constraints=(prompt_settings or {}).get("constraints") if prompt_settings else None,
+        retrieval_confidence = compute_retrieval_confidence(vector_results)
+        rerank_confidence = compute_rerank_confidence(final_chunks)
+        initial_mode = select_initial_response_mode(
+            retrieval_confidence=retrieval_confidence,
+            rerank_confidence=rerank_confidence,
+            context=context,
+            config=prompt_config,
         )
 
-        generation_start = time.perf_counter()
-        generation_result = self.generation_backend.generate(prompt)
-        answer = generation_result.text.strip()
-        generation_latency_ms = (time.perf_counter() - generation_start) * 1000
-
-        if not answer:
-            answer = "I don't know based on the provided context."
+        if initial_mode == ResponseMode.FALLBACK:
+            answer = build_graceful_fallback(query, config=prompt_config)
+            generation_result = GoogleGenerationResult(
+                text=answer,
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=0,
+            )
+            generation_latency_ms = 0.0
+            response_mode = ResponseMode.FALLBACK
+        else:
+            primary_prompt = build_answer_prompt(
+                query,
+                context,
+                config=prompt_config,
+                response_mode=initial_mode,
+            )
+            recovery_prompt = build_recovery_prompt(
+                query,
+                context,
+                config=prompt_config,
+                response_mode=initial_mode,
+            )
+            generation_start = time.perf_counter()
+            generate_with_recovery = getattr(self.generation_backend, "generate_with_recovery", None)
+            if callable(generate_with_recovery):
+                generation_result = generate_with_recovery(
+                    primary_prompt,
+                    recovery_prompt=recovery_prompt,
+                )
+            else:
+                generation_result = self.generation_backend.generate(primary_prompt)
+            answer = generation_result.text.strip()
+            generation_latency_ms = (time.perf_counter() - generation_start) * 1000
+            if not answer:
+                answer = build_graceful_fallback(query, config=prompt_config)
+            response_mode = classify_response_mode(
+                answer=answer,
+                context=context,
+                confidence=0.0,
+                config=prompt_config,
+            )
+            if response_mode == ResponseMode.FALLBACK:
+                answer = build_graceful_fallback(query, config=prompt_config)
 
         confidence, breakdown = compute_confidence_breakdown(vector_results, final_chunks, answer, context)
+        if response_mode != ResponseMode.FALLBACK:
+            response_mode = classify_response_mode(
+                answer=answer,
+                context=context,
+                confidence=confidence,
+                config=prompt_config,
+            )
+            if response_mode == ResponseMode.FALLBACK:
+                answer = build_graceful_fallback(query, config=prompt_config)
+                confidence, breakdown = compute_confidence_breakdown(vector_results, final_chunks, answer, context)
 
         total_latency_ms = (time.perf_counter() - pipeline_start) * 1000
         rerank_latency_ms = (
@@ -130,6 +195,7 @@ class RagPipeline:
         return RagResult(
             query=query,
             answer=answer,
+            response_mode=response_mode.value,
             confidence=confidence,
             confidence_label=confidence_label(confidence),
             confidence_breakdown={

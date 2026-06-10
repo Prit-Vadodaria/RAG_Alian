@@ -1,12 +1,20 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from src.api.guardrails import check_text
+from src.config.settings import (
+    ALLOW_INFERENCE,
+    DEFAULT_FALLBACK_BEHAVIOR,
+    DEFAULT_STYLE,
+    DEFAULT_TONE,
+    STRICT_GROUNDING,
+    WEBSITE_IDENTITY_MODE,
+)
 from src.api.services.prompt_settings_service import (
-    get_default_settings,
     load_prompt_settings,
+    reset_prompt_settings as reset_prompt_settings_service,
     save_prompt_settings,
 )
 
@@ -21,10 +29,15 @@ class PromptSettingsRequest(BaseModel):
         max_length=500,
         description="System role description for the RAG assistant.",
     )
+    tone: str = Field(default=DEFAULT_TONE, max_length=64)
+    answer_style: str = Field(default=DEFAULT_STYLE, max_length=64)
+    fallback_behavior: str = Field(default=DEFAULT_FALLBACK_BEHAVIOR, max_length=128)
+    strict_grounding: bool = Field(default=STRICT_GROUNDING)
+    allow_inference: bool = Field(default=ALLOW_INFERENCE)
+    website_identity_mode: bool = Field(default=WEBSITE_IDENTITY_MODE)
     constraints: list[str] = Field(
         default_factory=list,
-        max_length=10,
-        description="Additional answer constraints (max 10 items, 300 chars each).",
+        description="Additional answer constraints (one per line, 300 chars each).",
     )
 
     @field_validator("role")
@@ -32,6 +45,13 @@ class PromptSettingsRequest(BaseModel):
     def role_safe(cls, v: str) -> str:
         check_text(v.strip(), field_name="role")
         return v.strip()
+
+    @field_validator("tone", "answer_style", "fallback_behavior")
+    @classmethod
+    def text_fields_safe(cls, v: str, info) -> str:
+        cleaned = v.strip()
+        check_text(cleaned, field_name=info.field_name)
+        return cleaned
 
     @field_validator("constraints")
     @classmethod
@@ -67,10 +87,24 @@ async def update_prompt_settings(
     request: PromptSettingsRequest,
 ) -> dict[str, object]:
     # Pydantic validators run before this point; request is already clean.
-    return save_prompt_settings(request.role, request.constraints)
+    try:
+        return save_prompt_settings(
+            request.role,
+            request.constraints,
+            tone=request.tone,
+            answer_style=request.answer_style,
+            fallback_behavior=request.fallback_behavior,
+            strict_grounding=request.strict_grounding,
+            allow_inference=request.allow_inference,
+            website_identity_mode=request.website_identity_mode,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/prompt-settings/reset")
 async def reset_prompt_settings() -> dict[str, object]:
-    defaults = get_default_settings()
-    return save_prompt_settings(defaults["role"], defaults["constraints"])
+    try:
+        return reset_prompt_settings_service()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

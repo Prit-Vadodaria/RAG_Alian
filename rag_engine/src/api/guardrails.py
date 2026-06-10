@@ -79,6 +79,18 @@ _COMPILED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     for p, reason in _BLOCKED_PATTERNS
 ]
 
+_ALLOWED_PHRASES: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^do\s+not\s+invent\s+facts?\.?$", re.IGNORECASE),
+    re.compile(
+        r"^never\s+invent\s+facts?\s+not\s+supported\s+by\s+retrieved\s+information\.?$",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"^never\s+invent\s+facts?\s+not\s+supported\s+by\s+website\s+knowledge\.?$",
+        re.IGNORECASE,
+    ),
+)
+
 
 # ---------------------------------------------------------------------------
 # 2. Profanity — roots + common obfuscation variants
@@ -196,6 +208,12 @@ def check_text(text: str, field_name: str = "text") -> None:
     Raises ValueError with a descriptive message on the first violation found.
     Call this from every Pydantic field_validator that handles free text.
     """
+    normalized_text = str(text or "").strip()
+    if any(pattern.fullmatch(normalized_text) for pattern in _ALLOWED_PHRASES):
+        # Preserve the canonical default guidance while still applying the
+        # rest of the guardrail checks to other text.
+        return
+
     # Injection / hallucination / bypass / tone patterns
     for pattern, reason in _COMPILED_PATTERNS:
         if pattern.search(text):
@@ -232,6 +250,9 @@ def sanitize_constraints(constraints: list[str]) -> list[str]:
     kept: list[str] = []
     for c in constraints:
         low = c.lower()
+        if any(pattern.fullmatch(c.strip()) for pattern in _ALLOWED_PHRASES):
+            kept.append(c)
+            continue
         if any(frag in low for frag in _CONTRADICTION_FRAGMENTS):
             continue  # silently drop
         kept.append(c)

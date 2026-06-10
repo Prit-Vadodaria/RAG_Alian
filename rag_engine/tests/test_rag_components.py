@@ -34,9 +34,10 @@ class RagComponentsTests(unittest.TestCase):
 
     def test_grounded_prompt_includes_guardrails_and_question(self) -> None:
         prompt = build_grounded_prompt("What is pricing?", "[S1]\nContent")
-        self.assertIn("Use only the provided context", prompt)
-        self.assertIn("I don't know based on the provided context.", prompt)
-        self.assertIn("Question: What is pricing?", prompt)
+        self.assertIn("Answer only using information supported by the website knowledge.", prompt)
+        self.assertIn("<response_mode>", prompt)
+        self.assertIn("<question>", prompt)
+        self.assertIn("What is pricing?", prompt)
 
 
 if __name__ == "__main__":

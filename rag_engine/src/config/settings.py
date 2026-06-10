@@ -7,12 +7,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
 import os
 
-# Stability knobs for native ML stacks on Windows CPU boxes.
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
@@ -73,6 +71,36 @@ def _env_optional_float(name: str) -> float | None:
         return None
 
 
+DEFAULT_PROMPT_ROLE = (
+    "You are a friendly, helpful website assistant.\n\n"
+    "You speak naturally like a real customer support representative.\n\n"
+    "You are warm, professional, concise and easy to understand.\n\n"
+    "You help users find information available on the website while maintaining a natural conversation."
+)
+DEFAULT_TONE = _env_str("DEFAULT_TONE", "friendly")
+DEFAULT_STYLE = _env_str("DEFAULT_STYLE", "professional")
+DEFAULT_FALLBACK_BEHAVIOR = _env_str("DEFAULT_FALLBACK_BEHAVIOR", "helpful")
+ALLOW_INFERENCE = _env_bool("ALLOW_INFERENCE", True)
+STRICT_GROUNDING = _env_bool("STRICT_GROUNDING", True)
+WEBSITE_IDENTITY_MODE = _env_bool("WEBSITE_IDENTITY_MODE", True)
+MANDATORY_PROMPT_CONSTRAINT = "Answer only using information supported by the website knowledge."
+DEFAULT_PROMPT_CONSTRAINTS: tuple[str, ...] = (
+    MANDATORY_PROMPT_CONSTRAINT,
+    "Speak naturally like a real customer support representative.",
+    "Be warm, friendly and professional.",
+    "Address the user directly using 'you' and 'your'.",
+    "Write short paragraphs or clean bullet points.",
+    "Never create large walls of text.",
+    "If information exists, answer confidently.",
+    "If information is partial, share what is available.",
+    "If related information exists, use it to provide guidance.",
+    "Always try to be helpful before refusing.",
+    "Never mention chunks, context, retrieval, sources or internal systems.",
+    "Never expose technical implementation details.",
+    "Never invent facts not supported by retrieved information.",
+)
+
+
 @dataclass(frozen=True)
 class Settings:
     BASE_DIR: Path = Path(__file__).resolve().parents[2]
@@ -99,10 +127,7 @@ class Settings:
     HUGGINGFACE_CACHE_DIR: Path = BASE_DIR / _env_str("HUGGINGFACE_CACHE_DIR", ".hf_cache")
     CHROMA_DIR: Path = BASE_DIR / _env_str("CHROMA_DIR", ".workspace/indexes/chroma")
     CHROMA_COLLECTION: str = _env_str("CHROMA_COLLECTION", "website_rag_bge_base_v1")
-    CHATBOT_CHROMA_COLLECTION: str = _env_str(
-        "CHATBOT_CHROMA_COLLECTION",
-        "chatbot_rag_bge_base_v1",
-    )
+    CHATBOT_CHROMA_COLLECTION: str = _env_str("CHATBOT_CHROMA_COLLECTION", "chatbot_rag_bge_base_v1")
     MAX_SEARCH_DISTANCE: float = _env_float("MAX_SEARCH_DISTANCE", 1.15)
     RAG_CONTEXT_TOKENS: int = _env_int("RAG_CONTEXT_TOKENS", 2200)
     VECTOR_TOP_K: int = _env_int("VECTOR_TOP_K", 10)
@@ -121,9 +146,35 @@ class Settings:
     RERANKER_MODEL: str = _env_str("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
     RERANKER_USE_FP16: bool = _env_bool("RERANKER_USE_FP16", False)
     RERANKER_INIT_TIMEOUT_SECONDS: int = _env_int("RERANKER_INIT_TIMEOUT_SECONDS", 30)
-    DISCOVERY_MAX_PAGES: int = _env_int("DISCOVERY_MAX_PAGES", 250)
-    DISCOVERY_MAX_DEPTH: int = _env_int("DISCOVERY_MAX_DEPTH", 2)
-    INGESTION_BATCH_SIZE: int = _env_int("INGESTION_BATCH_SIZE", 100)
+
+    # -----------------------------------------------------------------------
+    # Discovery — hardcoded 250 limit removed.
+    # DISCOVERY_MAX_PAGES = 0 means unlimited.
+    # DISCOVERY_MAX_DEPTH = 0 means unlimited depth.
+    # -----------------------------------------------------------------------
+    DISCOVERY_MAX_PAGES: int = _env_int("DISCOVERY_MAX_PAGES", 0)   # 0 = unlimited
+    DISCOVERY_MAX_DEPTH: int = _env_int("DISCOVERY_MAX_DEPTH", 0)   # 0 = unlimited
+
+    # -----------------------------------------------------------------------
+    # Ingestion pipeline
+    # -----------------------------------------------------------------------
+    # URL-by-URL streaming pipeline — batch size of 1 is the new default.
+    # Set INGESTION_BATCH_SIZE > 1 to restore batched behaviour.
+    INGESTION_BATCH_SIZE: int = _env_int("INGESTION_BATCH_SIZE", 1)
+
+    # Buffered embedding indexing — flush to ChromaDB every N embeddings.
+    EMBEDDING_INDEX_BATCH_SIZE: int = _env_int("EMBEDDING_INDEX_BATCH_SIZE", 32)
+
+    # -----------------------------------------------------------------------
+    # Duplicate detection
+    # -----------------------------------------------------------------------
+    # Jaccard similarity threshold for near-duplicate detection.
+    # Applied against extracted main-content markdown (not full HTML).
+    # Range: 0.0–1.0. Lower = more aggressive dedup. Default 0.85.
+    DUPLICATE_SIMILARITY_THRESHOLD: float = _env_float("DUPLICATE_SIMILARITY_THRESHOLD", 0.85)
+
+    # Minimum content length (chars) below which a page is considered empty.
+    MIN_CONTENT_LENGTH: int = _env_int("MIN_CONTENT_LENGTH", 40)
 
 
 settings = Settings()
@@ -174,6 +225,9 @@ RERANKER_INIT_TIMEOUT_SECONDS = settings.RERANKER_INIT_TIMEOUT_SECONDS
 DISCOVERY_MAX_PAGES = settings.DISCOVERY_MAX_PAGES
 DISCOVERY_MAX_DEPTH = settings.DISCOVERY_MAX_DEPTH
 INGESTION_BATCH_SIZE = settings.INGESTION_BATCH_SIZE
+EMBEDDING_INDEX_BATCH_SIZE = settings.EMBEDDING_INDEX_BATCH_SIZE
+DUPLICATE_SIMILARITY_THRESHOLD = settings.DUPLICATE_SIMILARITY_THRESHOLD
+MIN_CONTENT_LENGTH = settings.MIN_CONTENT_LENGTH
 
 
 def ensure_directories() -> None:

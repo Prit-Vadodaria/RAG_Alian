@@ -12,4 +12,28 @@ const apiClient = axios.create({
   },
 });
 
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    try {
+      const responseData = error?.response?.data;
+      const status = error?.response?.status;
+      const backendMessage =
+        responseData?.error ||
+        responseData?.detail ||
+        responseData?.message ||
+        responseData?.msg;
+
+      if (backendMessage) {
+        error.message = backendMessage;
+      } else if (status) {
+        error.message = "Request failed.";
+      }
+    } catch {
+      // Leave the original Axios error message intact if normalization fails.
+    }
+    return Promise.reject(error);
+  },
+);
+
 export default apiClient;

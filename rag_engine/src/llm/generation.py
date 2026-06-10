@@ -16,7 +16,7 @@ from src.config.settings import (
     GOOGLE_TEMPERATURE,
     GOOGLE_TIMEOUT_SECONDS,
 )
-from src.llm.google_client import GoogleClient, GoogleConfig
+from src.llm.google_client import GoogleClient, GoogleConfig, GoogleGenerationResult
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +24,11 @@ logger = logging.getLogger(__name__)
 class TextGenerationBackend(Protocol):
     """Minimal generation backend interface."""
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str):
         """Generate text for the provided prompt."""
+
+    def generate_with_recovery(self, prompt: str, recovery_prompt: str | None = None):
+        """Generate text and optionally retry with a recovery prompt."""
 
 
 @dataclass(frozen=True)
@@ -62,11 +65,56 @@ class GoogleGenerationBackend:
             )
         )
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str):
         try:
             return self.client.generate(prompt)
         except RuntimeError as exc:
             if "rate limits" in str(exc).lower():
                 logger.warning("LLM temporarily unavailable due to rate limits.")
-                return "LLM temporarily unavailable due to rate limits."
+                return GoogleGenerationResult(
+                    text="LLM temporarily unavailable due to rate limits.",
+                    input_tokens=0,
+                    output_tokens=0,
+                    total_tokens=0,
+                )
             raise
+
+    def generate_with_recovery(self, prompt: str, recovery_prompt: str | None = None):
+        primary = self.generate(prompt)
+        if recovery_prompt and _should_recover(primary.text):
+            recovery = self.generate(recovery_prompt)
+            if _is_better_recovery(primary.text, recovery.text):
+                return recovery
+        return primary
+
+
+def _should_recover(text: str) -> bool:
+    lowered = text.strip().lower()
+    if not lowered:
+        return True
+    return any(
+        phrase in lowered
+        for phrase in (
+            "i don't know",
+            "i do not know",
+            "not enough information",
+            "insufficient information",
+            "cannot determine",
+            "can't determine",
+            "no relevant context",
+            "not present in the context",
+            "cannot answer",
+        )
+    )
+
+
+def _is_better_recovery(primary_text: str, recovery_text: str) -> bool:
+    primary = primary_text.strip()
+    recovery = recovery_text.strip()
+    if not recovery:
+        return False
+    if not primary:
+        return True
+    if _should_recover(primary) and not _should_recover(recovery):
+        return True
+    return len(recovery) > len(primary)

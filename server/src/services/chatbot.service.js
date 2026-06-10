@@ -6,6 +6,20 @@ const DATA_DIR = path.resolve(__dirname, "../../../data");
 const CHATBOTS_PATH = path.join(DATA_DIR, "chatbots.json");
 const CHATBOT_LOG_DIR = path.join(DATA_DIR, "chatbots");
 const WEBSITE_CHROMA_COLLECTION = "website_rag_bge_base_v1";
+const DEFAULT_PROMPT_CONFIG = Object.freeze({
+  role:
+    "You are a friendly, helpful website assistant.\n\n" +
+    "You speak naturally like a real customer support representative.\n\n" +
+    "You are warm, professional, concise and easy to understand.\n\n" +
+    "You help users find information available on the website while maintaining a natural conversation.",
+  tone: "friendly",
+  answer_style: "professional",
+  fallback_behavior: "helpful",
+  strict_grounding: true,
+  allow_inference: true,
+  website_identity_mode: true,
+  constraints: [],
+});
 
 const DEFAULT_STATE = {
   version: 1,
@@ -81,10 +95,31 @@ function _normalizeAllowedDomains(domains) {
 
 function _normalizePromptConfig(promptConfig) {
   if (!promptConfig || typeof promptConfig !== "object") {
-    return { role: "", constraints: [] };
+    return { ...DEFAULT_PROMPT_CONFIG };
   }
   return {
-    role: typeof promptConfig.role === "string" ? promptConfig.role.trim() : "",
+    role: typeof promptConfig.role === "string" ? promptConfig.role.trim() : DEFAULT_PROMPT_CONFIG.role,
+    tone: typeof promptConfig.tone === "string" ? promptConfig.tone.trim() : DEFAULT_PROMPT_CONFIG.tone,
+    answer_style:
+      typeof promptConfig.answer_style === "string"
+        ? promptConfig.answer_style.trim()
+        : DEFAULT_PROMPT_CONFIG.answer_style,
+    fallback_behavior:
+      typeof promptConfig.fallback_behavior === "string"
+        ? promptConfig.fallback_behavior.trim()
+        : DEFAULT_PROMPT_CONFIG.fallback_behavior,
+    strict_grounding:
+      typeof promptConfig.strict_grounding === "boolean"
+        ? promptConfig.strict_grounding
+        : DEFAULT_PROMPT_CONFIG.strict_grounding,
+    allow_inference:
+      typeof promptConfig.allow_inference === "boolean"
+        ? promptConfig.allow_inference
+        : DEFAULT_PROMPT_CONFIG.allow_inference,
+    website_identity_mode:
+      typeof promptConfig.website_identity_mode === "boolean"
+        ? promptConfig.website_identity_mode
+        : DEFAULT_PROMPT_CONFIG.website_identity_mode,
     constraints: Array.isArray(promptConfig.constraints)
       ? promptConfig.constraints
           .map((line) => String(line).trim())

@@ -63,7 +63,7 @@ function Chat() {
   const [isPromptSettingsSaving, setIsPromptSettingsSaving] = useState(false);
   const chatScrollRef = useRef(null);
 
-  const { settings, saveSettings, loadSettings } = usePromptSettingsStore();
+  const { settings, saveSettings, resetSettings, loadSettings } = usePromptSettingsStore();
   const showToast = useContextStore((state) => state.showToast);
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) || chats[0];
@@ -214,10 +214,10 @@ function Chat() {
     }
   };
 
-  const handleResetPromptSettings = async (defaultSettings) => {
+  const handleResetPromptSettings = async () => {
     setIsPromptSettingsSaving(true);
     try {
-      await saveSettings(defaultSettings);
+      await resetSettings();
       showToast("Prompt settings reset to defaults.", "success");
       setIsPromptSettingsOpen(false);
     } catch (error) {

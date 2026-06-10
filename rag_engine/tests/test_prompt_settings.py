@@ -10,6 +10,25 @@ from src.api.services import prompt_settings_service as service
 
 
 class PromptSettingsServiceTests(unittest.TestCase):
+    def test_get_default_settings_includes_prompt_config_fields(self) -> None:
+        defaults = service.get_default_settings()
+        self.assertIn("tone", defaults)
+        self.assertIn("answer_style", defaults)
+        self.assertTrue(defaults["website_identity_mode"])
+
+    def test_save_prompt_settings_accepts_default_constraints(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            settings_path = Path(temp_dir) / "prompt_settings.json"
+            defaults = service.get_default_settings()
+
+            with patch.object(service, "_SETTINGS_PATH", settings_path):
+                saved = service.save_prompt_settings(
+                    defaults["role"],
+                    list(defaults["constraints"]),
+                )
+
+            self.assertEqual(saved["constraints"][0], defaults["constraints"][0])
+
     def test_save_prompt_settings_rejects_constraint_bypass_language(self) -> None:
         with self.assertRaises(ValueError):
             service.save_prompt_settings(

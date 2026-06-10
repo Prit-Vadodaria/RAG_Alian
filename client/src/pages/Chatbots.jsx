@@ -121,6 +121,12 @@ function Chatbots() {
         },
         prompt_config: {
           role: settings.role || "",
+          tone: settings.tone || "friendly",
+          answer_style: settings.answer_style || "professional",
+          fallback_behavior: settings.fallback_behavior || "helpful",
+          strict_grounding: settings.strict_grounding ?? true,
+          allow_inference: settings.allow_inference ?? true,
+          website_identity_mode: settings.website_identity_mode ?? true,
           constraints: settings.constraints || [],
         },
       });

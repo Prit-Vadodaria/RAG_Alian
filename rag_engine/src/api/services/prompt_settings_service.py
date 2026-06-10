@@ -4,20 +4,19 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.api.guardrails import check_text
-from src.rag.prompt_template import DEFAULT_CONSTRAINTS, DEFAULT_ROLE, normalize_prompt_settings
+from src.rag.prompts import (
+    ChatbotPromptConfig,
+    normalize_prompt_config,
+    normalize_prompt_settings,
+)
+from src.rag.prompt_template import DEFAULT_CONSTRAINTS
 
 _SETTINGS_PATH = Path(__file__).resolve().parents[3] / "prompt_settings.json"
 
 
 def get_default_settings() -> dict[str, object]:
-    return {"role": DEFAULT_ROLE, "constraints": list(DEFAULT_CONSTRAINTS)}
-
-
-def _validate_prompt_settings(role: str, constraints: list[str]) -> None:
-    check_text(role, field_name="role")
-    for index, item in enumerate(constraints):
-        check_text(item, field_name=f"constraint[{index}]")
+    config = normalize_prompt_config()
+    return _config_to_payload(config)
 
 
 def load_prompt_settings() -> dict[str, object]:
@@ -28,34 +27,23 @@ def load_prompt_settings() -> dict[str, object]:
     except Exception:
         return get_default_settings()
 
-    role, constraints = normalize_prompt_settings(raw.get("role"), raw.get("constraints"))
-
-    try:
-        check_text(role, field_name="role")
-    except ValueError:
-        role = DEFAULT_ROLE
-
-    safe_constraints: list[str] = []
-    for item in constraints:
-        try:
-            check_text(item, field_name="constraint")
-        except ValueError:
-            continue
-        safe_constraints.append(item)
-
-    return {
-        "role": role,
-        "constraints": safe_constraints or list(DEFAULT_CONSTRAINTS),
-        # Pass through audit fields if present, so the frontend can display them.
-        "last_modified": raw.get("last_modified"),
-        "last_modified_by": raw.get("last_modified_by"),
-    }
+    config = normalize_prompt_config(raw)
+    payload = _config_to_payload(config)
+    payload["last_modified"] = raw.get("last_modified")
+    payload["last_modified_by"] = raw.get("last_modified_by")
+    return payload
 
 
 def save_prompt_settings(
     role: str | None,
     constraints: list[str] | None,
     *,
+    tone: str | None = None,
+    answer_style: str | None = None,
+    fallback_behavior: str | None = None,
+    strict_grounding: bool | None = None,
+    allow_inference: bool | None = None,
+    website_identity_mode: bool | None = None,
     changed_by: str = "api",
 ) -> dict[str, object]:
     """Persist prompt settings with an audit timestamp.
@@ -71,12 +59,45 @@ def save_prompt_settings(
         The normalised, persisted settings dict (matches GET response shape).
     """
     norm_role, norm_constraints = normalize_prompt_settings(role, constraints)
-    _validate_prompt_settings(norm_role, norm_constraints)
-    payload = {
-        "role": norm_role,
-        "constraints": norm_constraints,
-        "last_modified": datetime.now(timezone.utc).isoformat(),
-        "last_modified_by": changed_by,
-    }
+    config = normalize_prompt_config(
+        {
+            "role": norm_role,
+            "constraints": norm_constraints,
+            "tone": tone,
+            "answer_style": answer_style,
+            "fallback_behavior": fallback_behavior,
+            "strict_grounding": strict_grounding,
+            "allow_inference": allow_inference,
+            "website_identity_mode": website_identity_mode,
+        }
+    )
+    payload = _config_to_payload(config)
+    payload["last_modified"] = datetime.now(timezone.utc).isoformat()
+    payload["last_modified_by"] = changed_by
     _SETTINGS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return payload
+
+
+def reset_prompt_settings(
+    *,
+    changed_by: str = "api",
+) -> dict[str, object]:
+    """Restore the canonical defaults without going through user-input validation."""
+    payload = _config_to_payload(normalize_prompt_config())
+    payload["last_modified"] = datetime.now(timezone.utc).isoformat()
+    payload["last_modified_by"] = changed_by
+    _SETTINGS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return payload
+
+
+def _config_to_payload(config: ChatbotPromptConfig) -> dict[str, object]:
+    return {
+        "role": config.role,
+        "tone": config.tone,
+        "answer_style": config.answer_style,
+        "fallback_behavior": config.fallback_behavior,
+        "strict_grounding": config.strict_grounding,
+        "allow_inference": config.allow_inference,
+        "website_identity_mode": config.website_identity_mode,
+        "constraints": list(config.constraints) or list(DEFAULT_CONSTRAINTS),
+    }

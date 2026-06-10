@@ -68,6 +68,7 @@
   const shadowRoot = rootHost.attachShadow({ mode: "open" });
   const visitorIdKey = `rag-widget-visitor-${chatbotId}`;
   const stateKey = `rag-widget-state-${chatbotId}`;
+  const themeKey = `rag-widget-theme-${chatbotId}`;
   const legacySessionKey = `rag-widget-session-${chatbotId}`;
 
   function getVisitorId() {
@@ -195,6 +196,69 @@
     }
   }
 
+  function loadThemePreference() {
+    try {
+      const stored = localStorage.getItem(themeKey);
+      return stored === "light" ? "light" : "dark";
+    } catch {
+      return "dark";
+    }
+  }
+
+  function saveThemePreference(theme) {
+    try {
+      localStorage.setItem(themeKey, theme);
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  function getThemePalette() {
+    const themeConfig = state.config?.theme || {};
+    if (state.theme === "light") {
+      const accent = themeConfig.accent || "#0099ff";
+      return {
+        canvas: "#ffffff",
+        surface1: "#f8f8f8",
+        surface2: "#eeeeee",
+        text: "#111111",
+        textMuted: "#666666",
+        accent,
+        error: "#d0344d",
+        border: "#dddddd",
+        borderSoft: "#e9e9e9",
+        shadow: "rgba(0, 0, 0, 0.12)",
+        shadowStrong: "rgba(0, 0, 0, 0.18)",
+        userGradient:
+          themeConfig.user_gradient ||
+          `linear-gradient(135deg, ${accent}, #6cb8ff)`,
+        userText: "#ffffff",
+        mutedBg: "rgba(0, 0, 0, 0.03)",
+        overlay: "rgba(17, 17, 17, 0.08)",
+      };
+    }
+    const accent = themeConfig.accent || "#0099ff";
+    return {
+      canvas: "#090909",
+      surface1: "#141414",
+      surface2: "#1c1c1c",
+      text: "#ffffff",
+      textMuted: "#999999",
+      accent,
+      error: "#f87171",
+      border: "#262626",
+      borderSoft: "#1a1a1a",
+      shadow: "rgba(0, 0, 0, 0.42)",
+      shadowStrong: "rgba(0, 0, 0, 0.56)",
+      userGradient:
+        themeConfig.user_gradient ||
+        `linear-gradient(135deg, ${accent}, #5a69ff)`,
+      userText: "#ffffff",
+      mutedBg: "rgba(255, 255, 255, 0.04)",
+      overlay: "rgba(0, 0, 0, 0.38)",
+    };
+  }
+
   const state = {
     config: null,
     chats: [],
@@ -209,6 +273,7 @@
     pendingChatId: "",
     activeRequestId: "",
     scrollToBottom: false,
+    theme: loadThemePreference(),
   };
 
   const hydrated = loadWidgetState();
@@ -220,6 +285,13 @@
   state.activeChatId = hydratedActive.id;
   state.input = hydratedActive.draft || "";
   saveWidgetState();
+  saveThemePreference(state.theme);
+
+  function toggleTheme() {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    saveThemePreference(state.theme);
+    render();
+  }
 
   function getActiveChat() {
     if (!state.chats.length) {
@@ -422,11 +494,7 @@
       }
 
       if (state.chats.some((item) => item.id === chatId)) {
-        appendMessage(
-          chatId,
-          "assistant",
-          response.answer || "I don't know based on the provided context.",
-        );
+        appendMessage(chatId, "assistant", response.answer);
         state.scrollToBottom = true;
       }
     } catch (error) {
@@ -457,6 +525,7 @@
     textarea.style.height = "0px";
     const nextHeight = Math.min(Math.max(textarea.scrollHeight, 40), 112);
     textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = textarea.scrollHeight > 40 ? "auto" : "hidden";
   }
 
   function openWidget() {
@@ -479,53 +548,91 @@
   }
 
   function styleText() {
-    const theme = state.config?.theme || {};
-    const accent = theme.accent || "#22d3ee";
-    const bg = theme.background || "#0b1020";
-    const panel = theme.panel || "#111827";
-    const text = theme.text || "#e5e7eb";
-    const muted = theme.muted || "#9ca3af";
-    const surface = theme.surface || "rgba(255,255,255,.05)";
-    const border = theme.border || "rgba(255,255,255,.10)";
-    const userGradient =
-      theme.user_gradient || `linear-gradient(135deg, ${accent}, #60a5fa)`;
+    const palette = getThemePalette();
 
     return `
       :host {
         all: initial;
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --canvas: ${palette.canvas};
+        --surface-1: ${palette.surface1};
+        --surface-2: ${palette.surface2};
+        --text: ${palette.text};
+        --text-muted: ${palette.textMuted};
+        --accent: ${palette.accent};
+        --error: ${palette.error};
+        --border: ${palette.border};
+        --border-soft: ${palette.borderSoft};
+        --shadow: ${palette.shadow};
+        --shadow-strong: ${palette.shadowStrong};
+        --user-gradient: ${palette.userGradient};
+        --user-text: ${palette.userText};
+        --muted-bg: ${palette.mutedBg};
+        --overlay: ${palette.overlay};
+        --history-width: 320px;
+        --radius-xs: 10px;
+        --radius-sm: 14px;
+        --radius-md: 18px;
+        --radius-lg: 24px;
+        --radius-xl: 28px;
+        --radius-pill: 999px;
       }
       * {
         box-sizing: border-box;
       }
+      :host([data-theme="light"]) {
+        color-scheme: light;
+      }
+      :host([data-theme="dark"]) {
+        color-scheme: dark;
+      }
       .launcher {
         position: fixed;
-        right: 20px;
-        bottom: 20px;
+        right: 18px;
+        bottom: 18px;
         z-index: 2147483647;
-        width: 64px;
-        height: 64px;
+        width: 60px;
+        height: 60px;
         border: none;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         background: transparent;
-        color: #06111a;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+        color: var(--user-text);
+        box-shadow: 0 16px 40px var(--shadow);
         cursor: pointer;
         display: ${state.open ? "none" : "grid"};
         place-items: center;
         padding: 0;
         transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+        outline: none;
       }
       .launcher svg {
-        width: 64px;
-        height: 64px;
+        width: 60px;
+        height: 60px;
         display: block;
-        filter: drop-shadow(0 14px 26px rgba(37, 99, 235, 0.18));
+        filter: drop-shadow(0 14px 26px rgba(0, 153, 255, 0.16));
+      }
+      .launcher-dot {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: launcherDotPulse 2.2s ease-in-out infinite;
+      }
+      .launcher-dot.dot-1 {
+        animation-delay: 0s;
+      }
+      .launcher-dot.dot-2 {
+        animation-delay: 0.16s;
+      }
+      .launcher-dot.dot-3 {
+        animation-delay: 0.32s;
       }
       .launcher:hover {
         transform: translateY(-2px) scale(1.02);
-        box-shadow: 0 26px 70px rgba(0, 0, 0, 0.34);
+        box-shadow: 0 20px 50px var(--shadow-strong);
         filter: brightness(1.04);
+      }
+      .launcher:focus-visible {
+        outline: 2px solid rgba(0, 153, 255, 0.6);
+        outline-offset: 4px;
       }
       .sr-only {
         position: absolute;
@@ -538,24 +645,32 @@
         white-space: nowrap;
         border: 0;
       }
+      @keyframes launcherDotPulse {
+        0%, 100% {
+          transform: translateY(0) scale(1);
+          opacity: 0.92;
+        }
+        50% {
+          transform: translateY(-1.5px) scale(1.08);
+          opacity: 1;
+        }
+      }
       .panel {
         position: fixed;
-        right: 20px;
-        bottom: 20px;
+        right: 18px;
+        bottom: 18px;
         z-index: 2147483647;
-        width: min(424px, calc(100vw - 40px));
-        height: min(680px, calc(100vh - 40px));
-        border-radius: 28px;
+        width: min(440px, calc(100vw - 36px));
+        height: min(700px, calc(100vh - 36px));
+        border-radius: var(--radius-xl);
         overflow: hidden;
         display: ${state.open ? "flex" : "none"};
         flex-direction: column;
-        background:
-          radial-gradient(circle at top, rgba(255, 255, 255, 0.07), transparent 32%),
-          linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%),
-          ${panel};
-        color: ${text};
-        border: 1px solid ${border};
-        box-shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
+        background: radial-gradient(circle at top, rgba(255,255,255,0.035), transparent 32%), var(--canvas);
+        color: var(--text);
+        border: 1px solid var(--border);
+        box-shadow: 0 28px 90px var(--shadow-strong);
+        backdrop-filter: blur(18px);
       }
       .panel-shell {
         position: relative;
@@ -565,31 +680,32 @@
         overflow: hidden;
       }
       .header {
-        padding: 14px 16px 12px;
+        padding: 14px 14px 12px;
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: space-between;
-        gap: 10px;
-        background: rgba(255, 255, 255, 0.025);
-        border-bottom: 1px solid ${border};
-        backdrop-filter: blur(10px);
+        gap: 12px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+        border-bottom: 1px solid var(--border);
+        backdrop-filter: blur(12px);
       }
       .title {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 3px;
         min-width: 0;
       }
       .title strong {
         font-size: 14px;
-        line-height: 1.2;
-        letter-spacing: -0.01em;
+        line-height: 1.15;
+        letter-spacing: -0.03em;
+        font-weight: 700;
       }
       .title span,
       .meta,
       .status {
         font-size: 12px;
-        color: ${muted};
+        color: var(--text-muted);
       }
       .header-actions {
         display: flex;
@@ -600,6 +716,7 @@
       }
       .chip,
       .icon-button,
+      .theme-toggle,
       .close,
       .new-chat,
       .history-toggle,
@@ -609,14 +726,15 @@
       .send {
         border: none;
         outline: none;
-        transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, opacity 180ms ease, color 180ms ease, box-shadow 180ms ease;
+        transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, opacity 180ms ease, color 180ms ease, box-shadow 180ms ease, filter 180ms ease;
       }
       .chip,
       .icon-button,
+      .theme-toggle,
       .close,
       .new-chat,
       .history-toggle {
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         cursor: pointer;
         display: inline-flex;
         align-items: center;
@@ -629,6 +747,7 @@
       }
       .chip:focus-visible,
       .icon-button:focus-visible,
+      .theme-toggle:focus-visible,
       .close:focus-visible,
       .new-chat:focus-visible,
       .history-toggle:focus-visible,
@@ -645,18 +764,19 @@
       .new-chat {
         min-height: 34px;
         padding: 0 12px;
-        background: rgba(255, 255, 255, 0.06);
-        color: ${text};
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--surface-1);
+        color: var(--text);
+        border: 1px solid var(--border);
       }
       .new-chat {
-        background: linear-gradient(135deg, rgba(34, 211, 238, 0.18), rgba(96, 165, 250, 0.16));
-        border-color: rgba(34, 211, 238, 0.24);
+        background: linear-gradient(135deg, rgba(0, 153, 255, 0.18), rgba(90, 105, 255, 0.14));
+        border-color: rgba(0, 153, 255, 0.24);
       }
       .history-toggle:hover,
       .new-chat:hover,
       .close:hover,
       .icon-button:hover,
+      .theme-toggle:hover,
       .chip:hover,
       .confirm-button:hover,
       .send:hover {
@@ -665,8 +785,20 @@
       .close {
         min-width: 34px;
         height: 34px;
-        background: rgba(255, 255, 255, 0.06);
-        color: ${text};
+        background: var(--surface-1);
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      .theme-toggle {
+        min-width: 34px;
+        height: 34px;
+        background: var(--surface-1);
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      .theme-toggle svg {
+        width: 14px;
+        height: 14px;
       }
       .workspace {
         position: relative;
@@ -688,9 +820,9 @@
         flex-direction: column;
         gap: 12px;
         padding: 14px;
-        background: rgba(7, 10, 20, 0.96);
-        border-right: 1px solid ${border};
-        box-shadow: 16px 0 42px rgba(0, 0, 0, 0.26);
+        background: var(--surface-1);
+        border-right: 1px solid var(--border);
+        box-shadow: 16px 0 42px var(--shadow);
         transition: transform 220ms ease, opacity 220ms ease;
         z-index: 4;
       }
@@ -711,7 +843,7 @@
       }
       .history-meta {
         font-size: 12px;
-        color: ${muted};
+        color: var(--text-muted);
       }
       .history-list {
         flex: 1;
@@ -726,21 +858,21 @@
         gap: 6px;
         text-align: left;
         padding: 12px 12px 11px;
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        color: ${text};
+        border-radius: var(--radius-md);
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        color: var(--text);
         margin-bottom: 10px;
         cursor: pointer;
       }
       .history-item:hover {
-        background: rgba(255, 255, 255, 0.07);
-        border-color: rgba(255, 255, 255, 0.12);
+        background: color-mix(in srgb, var(--surface-2) 70%, var(--text) 6%);
+        border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 20%);
       }
       .history-item.active {
-        background: linear-gradient(135deg, rgba(34, 211, 238, 0.13), rgba(96, 165, 250, 0.09));
-        border-color: rgba(34, 211, 238, 0.28);
-        box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.12);
+        background: linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 84%, var(--accent) 16%), color-mix(in srgb, var(--surface-2) 90%, var(--accent) 10%));
+        border-color: color-mix(in srgb, var(--accent) 35%, var(--border) 65%);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
       }
       .history-item.delete-confirm {
         border-color: rgba(248, 113, 113, 0.32);
@@ -762,7 +894,7 @@
       .history-preview {
         font-size: 12px;
         line-height: 1.45;
-        color: ${muted};
+        color: var(--text-muted);
       }
       .history-footer {
         display: flex;
@@ -772,7 +904,7 @@
       }
       .history-time {
         font-size: 11px;
-        color: ${muted};
+        color: var(--text-muted);
       }
       .history-delete {
         opacity: 0;
@@ -780,9 +912,9 @@
         min-height: 28px;
         padding: 0 10px;
         border-radius: 999px;
-        background: rgba(248, 113, 113, 0.12);
-        color: #fecaca;
-        border: 1px solid rgba(248, 113, 113, 0.18);
+        background: color-mix(in srgb, var(--error) 12%, transparent);
+        color: color-mix(in srgb, var(--error) 30%, white);
+        border: 1px solid color-mix(in srgb, var(--error) 18%, transparent);
         font-size: 12px;
       }
       .history-item:hover .history-delete,
@@ -803,18 +935,19 @@
         cursor: pointer;
       }
       .confirm-button.cancel {
-        background: rgba(255, 255, 255, 0.07);
-        color: ${text};
+        background: var(--surface-1);
+        color: var(--text);
+        border: 1px solid var(--border);
       }
       .confirm-button.delete {
-        background: rgba(248, 113, 113, 0.16);
-        color: #fecaca;
-        border: 1px solid rgba(248, 113, 113, 0.22);
+        background: color-mix(in srgb, var(--error) 16%, transparent);
+        color: color-mix(in srgb, var(--error) 32%, white);
+        border: 1px solid color-mix(in srgb, var(--error) 22%, transparent);
       }
       .backdrop {
         position: absolute;
         inset: 0;
-        background: rgba(2, 6, 23, 0.38);
+        background: var(--overlay);
         opacity: 0;
         pointer-events: none;
         transition: opacity 220ms ease;
@@ -841,8 +974,8 @@
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        border-bottom: 1px solid ${border};
-        background: rgba(255, 255, 255, 0.015);
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
       }
       .conversation-header .summary {
         min-width: 0;
@@ -855,7 +988,7 @@
       }
       .conversation-header .summary span {
         font-size: 11px;
-        color: ${muted};
+        color: var(--text-muted);
       }
       .messages {
         flex: 1;
@@ -873,10 +1006,10 @@
       }
       .empty-state {
         padding: 20px 18px;
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.04);
-        color: ${text};
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        background: var(--surface-2);
+        color: var(--text);
       }
       .empty-state strong {
         display: block;
@@ -887,58 +1020,83 @@
         margin: 0;
         font-size: 13px;
         line-height: 1.55;
-        color: ${muted};
+        color: var(--text-muted);
       }
       .bubble {
-        max-width: 84%;
-        padding: 11px 13px;
-        border-radius: 18px;
-        line-height: 1.45;
+        max-width: min(86%, 36rem);
+        padding: 12px 14px;
+        border-radius: 20px;
+        line-height: 1.55;
         white-space: pre-wrap;
         word-break: break-word;
         font-size: 13px;
-        letter-spacing: -0.005em;
+        letter-spacing: -0.01em;
       }
       .user {
         align-self: flex-end;
-        background: ${userGradient};
-        color: #04111a;
+        background: var(--user-gradient);
+        color: var(--user-text);
         border-bottom-right-radius: 7px;
-        box-shadow: 0 10px 28px rgba(34, 211, 238, 0.14);
+        box-shadow: 0 10px 28px rgba(0, 153, 255, 0.16);
       }
       .assistant {
         align-self: flex-start;
-        background: rgba(255, 255, 255, 0.065);
-        color: ${text};
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--surface-2);
+        color: var(--text);
+        border: 1px solid var(--border);
         border-bottom-left-radius: 7px;
       }
       .typing {
         align-self: flex-start;
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 10px;
         min-height: 38px;
-        padding: 10px 13px;
+        padding: 10px 14px 10px 12px;
         border-radius: 18px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: ${muted};
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
         font-size: 12px;
       }
-      .typing::before {
-        content: "";
-        width: 8px;
-        height: 8px;
+      .typing-dots {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-right: 2px;
+        flex: 0 0 auto;
+      }
+      .typing-dots span {
+        width: 7px;
+        height: 7px;
         border-radius: 999px;
-        background: ${accent};
-        box-shadow: 12px 0 0 ${accent}, 24px 0 0 ${accent};
-        opacity: 0.9;
+        background: var(--accent);
+        opacity: 0.85;
+        animation: typingDotPulse 1.2s ease-in-out infinite;
+      }
+      .typing-dots span:nth-child(2) {
+        animation-delay: 0.16s;
+      }
+      .typing-dots span:nth-child(3) {
+        animation-delay: 0.32s;
+      }
+      .typing-label {
+        line-height: 1;
+      }
+      @keyframes typingDotPulse {
+        0%, 80%, 100% {
+          transform: translateY(0);
+          opacity: 0.45;
+        }
+        40% {
+          transform: translateY(-2px);
+          opacity: 1;
+        }
       }
       .composer-wrap {
-        padding: 10px 12px 12px;
-        border-top: 1px solid ${border};
-        background: rgba(0, 0, 0, 0.16);
+        padding: 12px;
+        border-top: 1px solid var(--border);
+        background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--canvas) 84%, var(--surface-1) 16%));
       }
       .composer {
         display: flex;
@@ -949,13 +1107,13 @@
       .input {
         flex: 1;
         min-height: 40px;
-        max-height: 112px;
+        max-height: 120px;
         resize: none;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid var(--border);
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.045);
-        color: ${text};
-        padding: 10px 12px;
+        background: var(--surface-2);
+        color: var(--text);
+        padding: 11px 12px;
         outline: none;
         font: inherit;
         line-height: 1.45;
@@ -963,23 +1121,23 @@
         transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
       }
       .input::placeholder {
-        color: rgba(156, 163, 175, 0.86);
+        color: var(--text-muted);
       }
       .input:focus {
-        border-color: rgba(34, 211, 238, 0.54);
-        box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
-        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(0, 153, 255, 0.54);
+        box-shadow: 0 0 0 3px rgba(0, 153, 255, 0.12);
+        background: var(--surface-2);
       }
       .send {
         min-width: 62px;
         height: 40px;
         padding: 0 14px;
         border-radius: 14px;
-        background: linear-gradient(135deg, ${accent}, #60a5fa);
-        color: #04111a;
+        background: linear-gradient(135deg, var(--accent), #6cb8ff);
+        color: #ffffff;
         font-weight: 700;
         cursor: pointer;
-        box-shadow: 0 10px 24px rgba(34, 211, 238, 0.14);
+        box-shadow: 0 10px 24px rgba(0, 153, 255, 0.16);
       }
       .send:disabled,
       .input:disabled,
@@ -998,11 +1156,11 @@
       }
       .error {
         font-size: 12px;
-        color: #fca5a5;
+        color: var(--error);
       }
       .scrollable {
         scrollbar-width: thin;
-        scrollbar-color: rgba(148, 163, 184, 0.44) rgba(15, 23, 42, 0.18);
+        scrollbar-color: color-mix(in srgb, var(--text-muted) 55%, transparent) color-mix(in srgb, var(--canvas) 88%, var(--surface-1));
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
       }
@@ -1011,16 +1169,16 @@
         height: 8px;
       }
       .scrollable::-webkit-scrollbar-track {
-        background: rgba(15, 23, 42, 0.18);
+        background: color-mix(in srgb, var(--canvas) 88%, var(--surface-1));
         border-radius: 999px;
       }
       .scrollable::-webkit-scrollbar-thumb {
-        background: rgba(148, 163, 184, 0.46);
+        background: color-mix(in srgb, var(--text-muted) 55%, transparent);
         border-radius: 999px;
-        border: 2px solid rgba(15, 23, 42, 0.18);
+        border: 2px solid color-mix(in srgb, var(--canvas) 88%, var(--surface-1));
       }
       .scrollable::-webkit-scrollbar-thumb:hover {
-        background: rgba(148, 163, 184, 0.62);
+        background: color-mix(in srgb, var(--text-muted) 72%, transparent);
       }
       @media (max-width: 640px) {
         .panel {
@@ -1099,6 +1257,7 @@
       (a, b) =>
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
+    rootHost.setAttribute("data-theme", state.theme);
 
     shadowRoot.innerHTML = `
       <style>${styleText()}</style>
@@ -1106,21 +1265,21 @@
         <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
           <defs>
             <linearGradient id="launcher-gradient-${chatbotId}" x1="14" y1="10" x2="54" y2="56" gradientUnits="userSpaceOnUse">
-              <stop offset="0" stop-color="#53d6ff" />
-              <stop offset="1" stop-color="#5a69ff" />
+              <stop offset="0" stop-color="var(--accent)" />
+              <stop offset="1" stop-color="#6cb8ff" />
             </linearGradient>
           </defs>
           <circle cx="32" cy="32" r="30" fill="url(#launcher-gradient-${chatbotId})" />
           <path
             d="M20.5 22.5h23a8.5 8.5 0 0 1 8.5 8.5v4.5a8.5 8.5 0 0 1-8.5 8.5H33.5L24 49v-5.5h-3.5a8.5 8.5 0 0 1-8.5-8.5V31a8.5 8.5 0 0 1 8.5-8.5Z"
             fill="none"
-            stroke="#f8fbff"
+            stroke="var(--user-text)"
             stroke-width="2.8"
             stroke-linejoin="round"
           />
-          <circle cx="27.5" cy="33.5" r="2.4" fill="#f8fbff" />
-          <circle cx="32" cy="33.5" r="2.4" fill="#f8fbff" />
-          <circle cx="36.5" cy="33.5" r="2.4" fill="#f8fbff" />
+          <circle class="launcher-dot dot-1" cx="26.5" cy="33.5" r="2.4" fill="var(--user-text)" />
+          <circle class="launcher-dot dot-2" cx="32" cy="33.5" r="2.4" fill="var(--user-text)" />
+          <circle class="launcher-dot dot-3" cx="37.5" cy="33.5" r="2.4" fill="var(--user-text)" />
         </svg>
         <span class="sr-only">Open chat</span>
       </button>
@@ -1131,6 +1290,13 @@
             <span>${escapeHtml(welcome)}</span>
           </div>
           <div class="header-actions">
+            <button class="theme-toggle" type="button" aria-label="Toggle theme" aria-pressed="${state.theme === "light" ? "true" : "false"}" title="Toggle theme">
+              ${
+                state.theme === "light"
+                  ? `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-14h1v3h-1V3Zm0 18h1v-3h-1v3ZM4.2 5.6l2.1 2.1-.7.7-2.1-2.1.7-.7Zm14.2 14.2 2.1 2.1.7-.7-2.1-2.1-.7.7ZM3 13h3v-1H3v1Zm18 0h-3v-1h3v1ZM5.6 19.8l2.1-2.1.7.7-2.1 2.1-.7-.7Zm14.2-14.2-2.1 2.1-.7-.7 2.1-2.1.7.7Z"/></svg>`
+                  : `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M20 14.6A8.5 8.5 0 0 1 9.4 4a7.9 7.9 0 1 0 10.6 10.6Z"/></svg>`
+              }
+            </button>
             <button class="history-toggle" type="button" aria-expanded="${state.historyOpen ? "true" : "false"}" aria-label="Toggle chat history">${state.historyOpen ? "Hide history" : "History"}</button>
             <button class="new-chat" type="button" aria-label="Start a new chat">New Chat</button>
             <button class="close" type="button" title="Close chat" aria-label="Close chat">Close</button>
@@ -1175,7 +1341,7 @@
               }
               ${
                 typingVisible
-                  ? '<div class="typing" aria-label="Assistant is typing">Thinking</div>'
+                  ? '<div class="typing" aria-label="Assistant is typing"><span class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></span><span class="typing-label">Thinking</span></div>'
                   : ""
               }
             </div>
@@ -1194,6 +1360,7 @@
 
     const launcher = shadowRoot.querySelector(".launcher");
     const close = shadowRoot.querySelector(".close");
+    const themeToggle = shadowRoot.querySelector(".theme-toggle");
     const historyToggle = shadowRoot.querySelector(".history-toggle");
     const newChat = shadowRoot.querySelector(".new-chat");
     const backdrop = shadowRoot.querySelector(".backdrop");
@@ -1203,6 +1370,7 @@
 
     launcher?.addEventListener("click", openWidget);
     close?.addEventListener("click", closeWidget);
+    themeToggle?.addEventListener("click", toggleTheme);
     historyToggle?.addEventListener("click", toggleHistory);
     newChat?.addEventListener("click", createNewChat);
     backdrop?.addEventListener("click", () => {

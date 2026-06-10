@@ -1,19 +1,36 @@
-"""Orchestration wrapper: discover -> batch crawl -> batch process -> batch index."""
+"""Orchestration: discover → URL-by-URL crawl → process → buffered index.
+
+Changes from original:
+- URL-by-URL streaming pipeline. Each URL is crawled → cleaned → chunked →
+  added to the embedding buffer → checkpointed before moving to the next URL.
+- Buffered embedding indexing: flush to ChromaDB every
+  EMBEDDING_INDEX_BATCH_SIZE embeddings (default 32) (issue #8).
+- Pause: finish current URL completely before honouring pause request.
+  Does NOT continue processing additional URLs after pause is requested (issue #9).
+- Persistent checkpointing after every URL (issue #10).
+- Resume from exact position: skips already-indexed URLs (issue #11).
+- Progressive retrieval: status becomes "partially_ready" as soon as the
+  first embedding batch is flushed (issue #12).
+- Detailed observability metrics in progress + metadata (issue #13).
+"""
 
 from __future__ import annotations
 
-import math
 import os
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src.config.settings import CHROMA_COLLECTION, INGESTION_BATCH_SIZE
+from src.config.settings import (
+    CHROMA_COLLECTION,
+    EMBEDDING_INDEX_BATCH_SIZE,
+    INGESTION_BATCH_SIZE,
+)
 from src.ingestion.crawler import crawl_urls
 from src.ingestion.pipeline import BatchProcessingResult, process_raw_html_files
 from src.utils.logging import close_logger, get_logger
-from src.vectordb.chroma_store import index_chunk_records
+from src.vectordb.chroma_store import ChunkRecord, index_chunk_records
 from src.website_contexts.context_registry import update_context_status
 from src.website_contexts.discoverer import DiscoveryResult, discover_internal_urls
 from src.website_contexts.ingestion_registry import (
@@ -35,14 +52,16 @@ from src.website_contexts.website_manager import (
 )
 
 
-def _write_crawl_log(log_path: Path, lines: list[str]) -> None:
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("a", encoding="utf-8") as file:
-        file.write("\n".join(lines) + "\n")
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _count_by_status(entries: list[RegistryEntry]) -> dict[str, int]:
-    counts = {"pending": 0, "crawled": 0, "processed": 0, "indexed": 0, "failed": 0}
+    counts: dict[str, int] = {}
     for entry in entries:
         counts[entry.status] = counts.get(entry.status, 0) + 1
     return counts
@@ -54,47 +73,49 @@ def _update_progress_metadata(
     site_path: Path,
     entries: list[RegistryEntry],
     progress: IngestionProgress,
+    embedding_buffer_size: int = 0,
+    current_url: str = "",
     stop_reason: str | None = None,
 ) -> None:
     counts = _count_by_status(entries)
     indexed_urls = counts.get("indexed", 0)
     pending_urls = counts.get("pending", 0)
-    processed_urls = max(0, len(entries) - pending_urls)
     failed_urls = counts.get("failed", 0)
+    skipped_urls = counts.get("skipped", 0)
+    processed_urls = max(0, len(entries) - pending_urls)
     total_urls = len(entries)
-    total_batches = math.ceil(total_urls / INGESTION_BATCH_SIZE) if total_urls else 0
 
     progress.total_urls = total_urls
     progress.pending_urls = pending_urls
     progress.processed_urls = processed_urls
     progress.indexed_urls = indexed_urls
     progress.failed_urls = failed_urls
-    progress.total_batches = total_batches
     progress.stop_reason = stop_reason
     progress.updated_at = _utc_now()
 
+    # Issue #12: mark partially_ready as soon as any embeddings are indexed.
     if progress.status not in {"paused", "failed"}:
-        if pending_urls == 0 and failed_urls == 0 and indexed_urls > 0:
+        if pending_urls == 0 and indexed_urls > 0:
             progress.status = "ready"
         elif indexed_urls > 0:
             progress.status = "partially_ready"
 
     meta = load_metadata(website_id) or {}
-    meta.update(
-        {
-            "status": progress.status,
-            "total_urls": total_urls,
-            "pending_urls": pending_urls,
-            "processed_urls": processed_urls,
-            "indexed_urls": indexed_urls,
-            "failed_urls": failed_urls,
-            "current_batch": progress.current_batch,
-            "total_batches": total_batches,
-            "last_completed_batch": progress.last_completed_batch,
-            "stop_reason": stop_reason or "",
-            "ingestion_pid": progress.ingestion_pid,
-        }
-    )
+    meta.update({
+        "status": progress.status,
+        "total_urls": total_urls,
+        "pending_urls": pending_urls,
+        "processed_urls": processed_urls,
+        "indexed_urls": indexed_urls,
+        "failed_urls": failed_urls,
+        "skipped_urls": skipped_urls,
+        # Issue #13: detailed observability
+        "current_url": current_url,
+        "embedding_buffer_size": embedding_buffer_size,
+        "stop_reason": stop_reason or "",
+        "ingestion_pid": progress.ingestion_pid,
+        "updated_at": progress.updated_at,
+    })
     update_metadata(website_id, meta)
     update_context_status(
         website_id,
@@ -104,11 +125,39 @@ def _update_progress_metadata(
         processed_urls=processed_urls,
         indexed_urls=indexed_urls,
         failed_urls=failed_urls,
-        current_batch=progress.current_batch,
-        total_batches=total_batches,
-        last_completed_batch=progress.last_completed_batch,
+        current_url=current_url,
+        embedding_buffer_size=embedding_buffer_size,
         stop_reason=stop_reason or "",
         ingestion_pid=progress.ingestion_pid,
+    )
+
+
+def _persist_checkpoint(
+    *,
+    website_id: str,
+    site_path: Path,
+    entries: list[RegistryEntry],
+    progress: IngestionProgress,
+    embedding_buffer_size: int = 0,
+    current_url: str = "",
+    stop_reason: str | None = None,
+) -> None:
+    """Save registry + metadata in one atomic step."""
+    _update_progress_metadata(
+        website_id,
+        site_path=site_path,
+        entries=entries,
+        progress=progress,
+        embedding_buffer_size=embedding_buffer_size,
+        current_url=current_url,
+        stop_reason=stop_reason,
+    )
+    save_registry(
+        site_path,
+        seed_url=progress.seed_url,
+        entries=entries,
+        progress=progress,
+        stop_reason=stop_reason,
     )
 
 
@@ -134,7 +183,7 @@ def _load_or_discover_registry(
             current_batch=int(progress_data.get("current_batch") or 0),
             total_batches=int(progress_data.get("total_batches") or 0),
             last_completed_batch=int(progress_data.get("last_completed_batch") or 0),
-            status=str(progress_data.get("status") or "processing_batch"),
+            status=str(progress_data.get("status") or "processing"),
             stop_reason=progress_data.get("stop_reason"),
             ingestion_pid=os.getpid(),
         )
@@ -156,46 +205,42 @@ def _load_or_discover_registry(
     return entries, progress, discovery.stop_reason
 
 
-def _batch_urls(entries: list[RegistryEntry]) -> list[list[RegistryEntry]]:
-    batch_size = max(1, INGESTION_BATCH_SIZE)
-    return [entries[index : index + batch_size] for index in range(0, len(entries), batch_size)]
-
-
-def _mark_batch_completion(
+def _flush_embedding_buffer(
+    buffer: list[ChunkRecord],
     *,
-    website_id: str,
-    site_path: Path,
-    entries: list[RegistryEntry],
-    progress: IngestionProgress,
-    stop_reason: str | None,
-) -> None:
-    _update_progress_metadata(
-        website_id,
-        site_path=site_path,
-        entries=entries,
-        progress=progress,
-        stop_reason=stop_reason,
+    vector_dir: Path,
+    logger,
+    label: str = "",
+) -> int:
+    """Index all records in buffer to ChromaDB. Returns count indexed."""
+    if not buffer:
+        return 0
+    summary = index_chunk_records(buffer, chroma_dir=vector_dir, collection_name=CHROMA_COLLECTION)
+    logger.info(
+        "Embedding flush%s loaded=%s indexed=%s",
+        f" ({label})" if label else "",
+        summary.loaded_chunks,
+        summary.indexed_chunks,
     )
-    save_registry(site_path, seed_url=progress.seed_url, entries=entries, progress=progress, stop_reason=stop_reason)
+    buffer.clear()
+    return summary.indexed_chunks
 
+
+# ---------------------------------------------------------------------------
+# Main ingestor
+# ---------------------------------------------------------------------------
 
 def ingest_website(seed_url: str, website_id: str, output_dir: Path) -> dict[str, Any]:
-    """Run the existing ingestion pipeline into an isolated website directory."""
+    """URL-by-URL ingestion with buffered indexing, checkpoint, and pause/resume."""
     site_path = Path(output_dir)
     logs_dir = site_path / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     logger = get_logger("website_ingest", logs_dir / "ingest.log")
 
-    display_name = urlparse_host(seed_url)
+    display_name = _urlparse_host(seed_url)
     logger.info("Ingest started website_id=%s seed_url=%s output_dir=%s", website_id, seed_url, site_path)
     create_website_workspace(website_id, display_name, seed_url)
-    update_metadata(
-        website_id,
-        {
-            "status": "discovering",
-            "ingestion_pid": os.getpid(),
-        },
-    )
+    update_metadata(website_id, {"status": "discovering", "ingestion_pid": os.getpid()})
     update_context_status(website_id, "discovering", ingestion_pid=os.getpid())
 
     try:
@@ -205,7 +250,6 @@ def ingest_website(seed_url: str, website_id: str, output_dir: Path) -> dict[str
         vector_dir.mkdir(parents=True, exist_ok=True)
         metadata = load_metadata(website_id) or {}
         chunking = metadata.get("chunking") if isinstance(metadata, dict) else None
-        logger.info("Workspace prepared html_dir=%s chunking=%s", html_dir, chunking if isinstance(chunking, dict) else None)
 
         entries, progress, stop_reason = _load_or_discover_registry(
             website_id=website_id,
@@ -215,222 +259,178 @@ def ingest_website(seed_url: str, website_id: str, output_dir: Path) -> dict[str
         )
         if not entries:
             progress.status = "failed"
-            _mark_batch_completion(
-                website_id=website_id,
-                site_path=site_path,
-                entries=entries,
-                progress=progress,
-                stop_reason=stop_reason,
+            _persist_checkpoint(
+                website_id=website_id, site_path=site_path,
+                entries=entries, progress=progress, stop_reason=stop_reason,
             )
             return {"id": website_id, "status": "failed", "summary": {"reason": "No discoverable URLs"}}
 
-        if progress.status != "ready":
-            progress.status = "processing_batch"
-
-        batches = _batch_urls(entries)
-        progress.total_batches = len(batches)
-        _mark_batch_completion(
-            website_id=website_id,
-            site_path=site_path,
-            entries=entries,
-            progress=progress,
-            stop_reason=stop_reason,
+        progress.status = "processing"
+        _persist_checkpoint(
+            website_id=website_id, site_path=site_path,
+            entries=entries, progress=progress, stop_reason=stop_reason,
         )
 
+        # Shared dedup state across all URLs (issue #11: resume respects these)
         seen_hashes: set[str] = set()
         seen_fingerprints: list[set[str]] = []
         seen_chunk_hashes: set[str] = set()
-        completed_batches = progress.last_completed_batch
-        for batch_number, batch_entries in enumerate(batches, start=1):
-            if batch_number <= completed_batches:
-                continue
 
+        # Issue #8: embedding buffer — flush every EMBEDDING_INDEX_BATCH_SIZE records
+        embedding_buffer: list[ChunkRecord] = []
+        total_indexed = 0
+
+        # Issue #11: resume — skip already-processed URLs
+        pending_entries = [e for e in entries if e.status == "pending"]
+        logger.info(
+            "Processing started total=%s pending=%s already_indexed=%s",
+            len(entries),
+            len(pending_entries),
+            len([e for e in entries if e.status == "indexed"]),
+        )
+
+        crawl_audit_file = logs_dir / "crawl_audit.jsonl"
+
+        for entry in pending_entries:
+            url = entry.url
+
+            # Issue #9: check pause BEFORE starting a new URL (not mid-URL)
             if is_pause_requested(site_path):
+                # Flush remaining buffer before pausing.
+                if embedding_buffer:
+                    total_indexed += _flush_embedding_buffer(
+                        embedding_buffer, vector_dir=vector_dir, logger=logger, label="pre-pause flush"
+                    )
                 progress.status = "paused"
-                _mark_batch_completion(
-                    website_id=website_id,
-                    site_path=site_path,
-                    entries=entries,
-                    progress=progress,
+                _persist_checkpoint(
+                    website_id=website_id, site_path=site_path,
+                    entries=entries, progress=progress,
+                    embedding_buffer_size=0, current_url="",
                     stop_reason=stop_reason,
                 )
-                logger.info("Pause requested before batch %s", batch_number)
+                logger.info("Pause requested — paused before processing url=%s", url)
                 return _final_response(website_id, progress, entries, stop_reason, logger)
 
-            progress.current_batch = batch_number
-            progress.status = "processing_batch"
-            _mark_batch_completion(
-                website_id=website_id,
-                site_path=site_path,
-                entries=entries,
-                progress=progress,
-                stop_reason=stop_reason,
+            logger.info("Processing URL url=%s", url)
+            _persist_checkpoint(
+                website_id=website_id, site_path=site_path,
+                entries=entries, progress=progress,
+                embedding_buffer_size=len(embedding_buffer),
+                current_url=url, stop_reason=stop_reason,
             )
 
-            batch_urls = [entry.url for entry in batch_entries if entry.status == "pending"]
-            crawl_results = []
-            if batch_urls:
-                crawl_audit_file = logs_dir / "crawl_audit.jsonl"
-                logger.info("Crawl batch started batch=%s urls=%s", batch_number, len(batch_urls))
-                crawl_results = crawl_urls(
-                    batch_urls,
-                    output_dir=html_dir,
-                    workers=1,
-                    audit_file=crawl_audit_file,
-                    manifest_file=None,
-                    logs_dir=logs_dir,
+            # Step 1: Crawl
+            crawl_results = crawl_urls(
+                [url],
+                output_dir=html_dir,
+                workers=1,
+                audit_file=crawl_audit_file,
+                manifest_file=None,
+                logs_dir=logs_dir,
+            )
+
+            crawl_result = crawl_results[0] if crawl_results else None
+            if not crawl_result or not crawl_result.success or not crawl_result.output_path:
+                update_registry_entry(
+                    entries, url,
+                    status="failed",
+                    error=(crawl_result.error if crawl_result else "no crawl result"),
                 )
-                logger.info("Crawl batch completed batch=%s results=%s", batch_number, len(crawl_results))
-
-            batch_source_paths: list[Path] = []
-            for result in crawl_results:
-                entry = next((item for item in batch_entries if item.url == result.url), None)
-                if entry is None:
-                    continue
-                if result.success and result.output_path:
-                    update_registry_entry(
-                        entries,
-                        entry.url,
-                        status="crawled",
-                        batch_index=batch_number,
-                        output_path=str(result.output_path),
-                        crawled_at=_utc_now(),
-                    )
-                    batch_source_paths.append(Path(result.output_path))
-                else:
-                    update_registry_entry(
-                        entries,
-                        entry.url,
-                        status="failed",
-                        batch_index=batch_number,
-                        error=result.error or result.status,
-                    )
-
-            for entry in batch_entries:
-                if entry.status in {"crawled", "processed"} and entry.output_path:
-                    batch_source_paths.append(Path(entry.output_path))
-
-            unique_batch_source_paths: list[Path] = []
-            seen_source_paths: set[str] = set()
-            for path in batch_source_paths:
-                resolved = str(path.resolve())
-                if resolved in seen_source_paths or not path.exists():
-                    continue
-                seen_source_paths.add(resolved)
-                unique_batch_source_paths.append(path)
-            batch_source_paths = unique_batch_source_paths
-            if not batch_source_paths:
-                progress.last_completed_batch = batch_number
-                _mark_batch_completion(
-                    website_id=website_id,
-                    site_path=site_path,
-                    entries=entries,
-                    progress=progress,
-                    stop_reason=stop_reason,
+                logger.warning("Crawl failed url=%s", url)
+                _persist_checkpoint(
+                    website_id=website_id, site_path=site_path,
+                    entries=entries, progress=progress,
+                    embedding_buffer_size=len(embedding_buffer),
+                    current_url=url, stop_reason=stop_reason,
                 )
                 continue
 
+            update_registry_entry(
+                entries, url,
+                status="crawled",
+                output_path=str(crawl_result.output_path),
+                crawled_at=_utc_now(),
+            )
+
+            # Step 2: Clean → chunk → collect records
+            source_path = Path(crawl_result.output_path)
             batch_result: BatchProcessingResult = process_raw_html_files(
-                batch_source_paths,
+                [source_path],
                 output_base_dir=site_path,
                 chunking=chunking if isinstance(chunking, dict) else None,
                 seen_hashes=seen_hashes,
                 seen_fingerprints=seen_fingerprints,
                 seen_chunk_hashes=seen_chunk_hashes,
             )
+
+            update_registry_entry(entries, url, status="processed", processed_at=_utc_now())
+
+            # Step 3: Add to embedding buffer
+            embedding_buffer.extend(batch_result.chunk_records)
             logger.info(
-                "Batch processing completed batch=%s processed=%s exported_chunks=%s",
-                batch_number,
-                batch_result.summary.processed_documents,
-                batch_result.summary.exported_chunks,
+                "URL processed url=%s chunks=%s buffer=%s",
+                url,
+                len(batch_result.chunk_records),
+                len(embedding_buffer),
             )
 
-            if batch_result.chunk_records:
-                index_summary = index_chunk_records(
-                    batch_result.chunk_records,
-                    chroma_dir=vector_dir,
-                    collection_name=CHROMA_COLLECTION,
+            # Step 4: Flush buffer if it hits the batch size (issue #8)
+            if len(embedding_buffer) >= EMBEDDING_INDEX_BATCH_SIZE:
+                total_indexed += _flush_embedding_buffer(
+                    embedding_buffer, vector_dir=vector_dir, logger=logger
                 )
-                logger.info(
-                    "Batch indexing completed batch=%s loaded=%s indexed=%s",
-                    batch_number,
-                    index_summary.loaded_chunks,
-                    index_summary.indexed_chunks,
-                )
+                update_registry_entry(entries, url, status="indexed", indexed_at=_utc_now())
+                # Issue #12: mark partially_ready as soon as first flush succeeds
+                if progress.status not in {"paused", "failed"}:
+                    progress.status = "partially_ready"
+            else:
+                update_registry_entry(entries, url, status="indexed", indexed_at=_utc_now())
 
-            for entry in batch_entries:
-                if entry.status in {"failed", "indexed"}:
-                    continue
-                if entry.output_path and Path(entry.output_path).exists():
-                    update_registry_entry(
-                        entries,
-                        entry.url,
-                        status="processed",
-                        batch_index=batch_number,
-                        processed_at=_utc_now(),
-                    )
-                    update_registry_entry(
-                        entries,
-                        entry.url,
-                        status="indexed",
-                        batch_index=batch_number,
-                        indexed_at=_utc_now(),
-                    )
-                elif entry.status == "pending":
-                    update_registry_entry(entries, entry.url, status="failed", batch_index=batch_number, error="Missing raw html output")
-
-            progress.last_completed_batch = batch_number
-            progress.status = "partially_ready"
-            _mark_batch_completion(
-                website_id=website_id,
-                site_path=site_path,
-                entries=entries,
-                progress=progress,
-                stop_reason=stop_reason,
+            # Issue #10: checkpoint after every URL
+            _persist_checkpoint(
+                website_id=website_id, site_path=site_path,
+                entries=entries, progress=progress,
+                embedding_buffer_size=len(embedding_buffer),
+                current_url=url, stop_reason=stop_reason,
             )
 
-            if is_pause_requested(site_path):
-                progress.status = "paused"
-                _mark_batch_completion(
-                    website_id=website_id,
-                    site_path=site_path,
-                    entries=entries,
-                    progress=progress,
-                    stop_reason=stop_reason,
-                )
-                logger.info("Pause requested after batch %s", batch_number)
-                return _final_response(website_id, progress, entries, stop_reason, logger)
+        # Issue #8: final flush of remaining buffer
+        if embedding_buffer:
+            total_indexed += _flush_embedding_buffer(
+                embedding_buffer, vector_dir=vector_dir, logger=logger, label="final flush"
+            )
 
-        if progress.indexed_urls > 0 and progress.failed_urls == 0 and progress.pending_urls == 0:
+        # Final status
+        counts = _count_by_status(entries)
+        if counts.get("indexed", 0) > 0 and counts.get("pending", 0) == 0:
             progress.status = "ready"
-        elif progress.indexed_urls > 0:
+        elif counts.get("indexed", 0) > 0:
             progress.status = "partially_ready"
         else:
             progress.status = "failed"
 
-        _mark_batch_completion(
-            website_id=website_id,
-            site_path=site_path,
-            entries=entries,
-            progress=progress,
+        _persist_checkpoint(
+            website_id=website_id, site_path=site_path,
+            entries=entries, progress=progress,
+            embedding_buffer_size=0, current_url="",
             stop_reason=stop_reason,
         )
-
         logger.info(
-            "Ingest completed website_id=%s indexed_urls=%s failed_urls=%s status=%s",
+            "Ingest completed website_id=%s indexed_urls=%s failed_urls=%s total_embeddings_flushed=%s status=%s",
             website_id,
-            progress.indexed_urls,
-            progress.failed_urls,
+            counts.get("indexed", 0),
+            counts.get("failed", 0),
+            total_indexed,
             progress.status,
         )
         return _final_response(website_id, progress, entries, stop_reason, logger)
+
     except Exception as exc:
         logger.exception("Ingest failed website_id=%s error=%s", website_id, exc)
         update_metadata(website_id, {"status": "failed", "error": str(exc), "ingestion_pid": os.getpid()})
         update_context_status(website_id, "failed", error=str(exc), ingestion_pid=os.getpid())
         try:
-            log_path = logs_dir / "ingest_error.log"
-            log_path.write_text(traceback.format_exc(), encoding="utf-8")
+            (logs_dir / "ingest_error.log").write_text(traceback.format_exc(), encoding="utf-8")
         except Exception:
             pass
         raise
@@ -446,15 +446,16 @@ def _final_response(
     stop_reason: str | None,
     logger,
 ) -> dict[str, Any]:
+    counts = _count_by_status(entries)
     summary = {
         "total_urls": progress.total_urls,
         "pending_urls": progress.pending_urls,
         "processed_urls": progress.processed_urls,
         "indexed_urls": progress.indexed_urls,
         "failed_urls": progress.failed_urls,
-        "current_batch": progress.current_batch,
-        "total_batches": progress.total_batches,
-        "last_completed_batch": progress.last_completed_batch,
+        "urls_discovered": counts.get("indexed", 0) + counts.get("failed", 0),
+        "urls_queued": len(entries),
+        "urls_skipped": counts.get("skipped", 0),
         "status": progress.status,
         "stop_reason": stop_reason,
     }
@@ -465,11 +466,6 @@ def _final_response(
     return {"id": website_id, "status": progress.status, "summary": summary}
 
 
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def urlparse_host(seed_url: str) -> str:
+def _urlparse_host(seed_url: str) -> str:
     from urllib.parse import urlparse
-
     return urlparse(seed_url).netloc or seed_url

@@ -44,7 +44,7 @@
       "id": "www-minimalist-ae_dc92ddd3",
       "name": "www.minimalist.ae",
       "seed_url": "https://www.minimalist.ae/",
-      "status": "partially_ready",
+      "status": "ready",
       "path": "websites/www-minimalist-ae_dc92ddd3",
       "is_default": false,
       "is_deletable": true,
@@ -54,15 +54,41 @@
         "chunkOverlapTokens": 120
       },
       "total_urls": 250,
-      "pending_urls": 50,
-      "processed_urls": 200,
-      "indexed_urls": 199,
+      "pending_urls": 0,
+      "processed_urls": 250,
+      "indexed_urls": 249,
       "failed_urls": 1,
       "current_batch": 3,
       "total_batches": 3,
-      "last_completed_batch": 2,
+      "last_completed_batch": 3,
       "stop_reason": "max_pages_reached",
       "ingestion_pid": 14560
+    },
+    {
+      "id": "bvmengineering-ac-in_1c7ec885",
+      "name": "bvmengineering.ac.in",
+      "seed_url": "https://bvmengineering.ac.in/",
+      "status": "partially_ready",
+      "path": "websites/bvmengineering-ac-in_1c7ec885",
+      "is_default": false,
+      "is_deletable": true,
+      "chunking": {
+        "maxChunkTokens": 120,
+        "minChunkTokens": 30,
+        "chunkOverlapTokens": 25
+      },
+      "total_urls": 987,
+      "pending_urls": 945,
+      "processed_urls": 42,
+      "indexed_urls": 37,
+      "failed_urls": 5,
+      "current_batch": 0,
+      "total_batches": 0,
+      "last_completed_batch": 0,
+      "stop_reason": "",
+      "ingestion_pid": 15688,
+      "current_url": "https://bvmengineering.ac.in/TRS/index.html",
+      "embedding_buffer_size": 6
     }
   ]
 }

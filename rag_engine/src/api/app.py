@@ -31,13 +31,26 @@ app.include_router(ask_router, prefix="/api")
 app.include_router(prompt_settings_router, prefix="/api")
 
 
+def _format_validation_error(exc: RequestValidationError) -> str:
+    parts: list[str] = []
+    for item in exc.errors():
+        location = item.get("loc", ())
+        field = ".".join(str(part) for part in location if part != "body") or "request"
+        message = str(item.get("msg", "Invalid value"))
+        parts.append(f"{field}: {message}")
+
+    if not parts:
+        return "Validation error: invalid request body."
+    return "Validation error: " + "; ".join(parts)
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     return JSONResponse(
         status_code=422,
         content={
             "success": False,
-            "error": "Validation error: " + str(exc),
+            "error": _format_validation_error(exc),
         },
     )
 
