@@ -2,17 +2,14 @@ function UsageProgressBar({ tokensUsed, dailyLimit, warningLevel }) {
   const safeLimit = Math.max(0, Number(dailyLimit) || 0);
   const safeUsed = Math.max(0, Number(tokensUsed) || 0);
   const pct = safeLimit > 0 ? Math.min(100, (safeUsed / safeLimit) * 100) : 0;
-  const displayStatus = {
-    none: "active",
-    warning: "warning",
-    critical: "critical",
-    exceeded: "exceeded",
-  }[warningLevel] || "active";
   const colorMap = {
-    none: "bg-[color:var(--success)]",
+    active: "bg-[color:var(--success)]",
     warning: "bg-[color:var(--warning)]",
     critical: "bg-[color:var(--primary)]",
     exceeded: "bg-[color:var(--error)]",
+    limited: "bg-[color:var(--warning)]",
+    cooldown: "bg-[color:var(--error)]",
+    suspended: "bg-[color:var(--error)]",
   };
 
   return (
@@ -38,7 +35,7 @@ function UsageProgressBar({ tokensUsed, dailyLimit, warningLevel }) {
         <span>
           Status:{" "}
           <span className="font-semibold text-[color:var(--on-dark)]">
-            {displayStatus}
+            {warningLevel || "active"}
           </span>
         </span>
         <span>{Math.max(0, safeLimit - safeUsed).toLocaleString()} remaining</span>

@@ -11,8 +11,9 @@ app.listen(PORT, () => {
 
 try {
   const client = tokenService.getOrCreateClient(DEFAULT_CLIENT_ID);
+  const quota = tokenService.checkQuotaStatus(DEFAULT_CLIENT_ID);
   console.log(
-    `[quota] Seeded client '${client.client_id}' with daily limit ${client.daily_limit} and status '${client.status}'`,
+    `[quota] Seeded client '${client.client_id}' with daily limit ${client.daily_limit} and status '${quota.status}'`,
   );
 } catch (error) {
   console.error("[quota] Failed to seed client:", error.message);

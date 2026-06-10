@@ -262,6 +262,47 @@ function _persistClientRecord(clientId, changes) {
   return next;
 }
 
+function _syncQuotaRecordFromUsage(clientId, tokensUsed, quotaClient = null) {
+  const normalizedClientId = _normalizeClientId(clientId);
+  const client = quotaClient || getOrCreateClient(normalizedClientId);
+
+  if (client.status === "suspended") {
+    return client;
+  }
+
+  const limit = _toPositiveNumber(client.daily_limit, DEFAULT_DAILY_TOKEN_LIMIT);
+  if (limit <= 0) {
+    return _persistClientRecord(normalizedClientId, {
+      status: "active",
+      cooldown_until: null,
+    });
+  }
+
+  if (tokensUsed >= limit) {
+    const cooldownMinutes = _toPositiveNumber(
+      client.cooldown_duration_minutes,
+      DEFAULT_COOLDOWN_MINUTES,
+    );
+    return _persistClientRecord(normalizedClientId, {
+      status: "cooldown",
+      cooldown_until: new Date(Date.now() + cooldownMinutes * 60 * 1000).toISOString(),
+      last_limit_exceeded_at: new Date().toISOString(),
+    });
+  }
+
+  const usagePercent = (tokensUsed / limit) * 100;
+  const nextStatus = usagePercent >= 90 ? "limited" : "active";
+
+  if (client.status !== nextStatus || client.cooldown_until) {
+    return _persistClientRecord(normalizedClientId, {
+      status: nextStatus,
+      cooldown_until: null,
+    });
+  }
+
+  return client;
+}
+
 function enterCooldown(clientId) {
   const normalizedClientId = _normalizeClientId(clientId);
   const client = getOrCreateClient(normalizedClientId);
@@ -278,27 +319,7 @@ function enterCooldown(clientId) {
 }
 
 function _applyUsageState(clientId, tokensUsed, quotaClient) {
-  const client = quotaClient || getOrCreateClient(clientId);
-  if (client.status === "suspended") {
-    return client;
-  }
-
-  if (client.status === "cooldown") {
-    return client;
-  }
-
-  const limit = _toPositiveNumber(client.daily_limit, DEFAULT_DAILY_TOKEN_LIMIT);
-  const usagePercent = limit > 0 ? (tokensUsed / limit) * 100 : 0;
-  const nextStatus = usagePercent >= 90 ? "limited" : "active";
-
-  if (nextStatus !== client.status) {
-    return _persistClientRecord(clientId, {
-      status: nextStatus,
-      cooldown_until: null,
-    });
-  }
-
-  return client;
+  return _syncQuotaRecordFromUsage(clientId, tokensUsed, quotaClient);
 }
 
 function recordTokenEvent(clientId, eventData = {}) {
@@ -352,12 +373,11 @@ function recordTokenEvent(clientId, eventData = {}) {
   const limit = _toPositiveNumber(quotaClient.daily_limit, DEFAULT_DAILY_TOKEN_LIMIT);
   const usagePercent = limit > 0 ? (dayRecord.total_tokens / limit) * 100 : 0;
 
-  let nextClient = quotaClient;
-  if (limit > 0 && dayRecord.total_tokens > limit) {
-    nextClient = enterCooldown(normalizedClientId);
-  } else {
-    nextClient = _applyUsageState(normalizedClientId, dayRecord.total_tokens, quotaClient);
-  }
+  const nextClient = _syncQuotaRecordFromUsage(
+    normalizedClientId,
+    dayRecord.total_tokens,
+    quotaClient,
+  );
 
   _invalidateQuotaCache(normalizedClientId);
   return {
@@ -428,11 +448,6 @@ function getMonthlyUsage(clientId, days = 30) {
 
 function checkQuotaStatus(clientId) {
   const normalizedClientId = _normalizeClientId(clientId);
-  const cached = _getCachedQuota(normalizedClientId);
-  if (cached) {
-    return cached;
-  }
-
   const client = getOrCreateClient(normalizedClientId);
   const today = _bucketDate();
   const usage = _readDailyUsageForDate(normalizedClientId, today);
@@ -453,9 +468,7 @@ function checkQuotaStatus(clientId) {
   const tokensUsed = usage.total_tokens;
   const tokensRemaining = Math.max(0, limit - tokensUsed);
 
-  if (nextClient.status !== "cooldown" && nextClient.status !== "suspended") {
-    nextClient = _applyUsageState(normalizedClientId, tokensUsed, nextClient);
-  }
+  nextClient = _syncQuotaRecordFromUsage(normalizedClientId, tokensUsed, nextClient);
 
   const cooldownUntil = nextClient.status === "cooldown" ? nextClient.cooldown_until || null : null;
   const allowed =

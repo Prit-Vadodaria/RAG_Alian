@@ -89,8 +89,8 @@ function Dashboard() {
   }, [fetchSummary]);
 
   const resolvedSummary = summary || {};
-  const warningLevel = resolvedSummary.warningLevel || "none";
-  const warningLabel = warningLevel === "none" ? "active" : warningLevel;
+  const warningLevel = resolvedSummary.warningLevel || "active";
+  const warningLabel = warningLevel;
   const accountStatus = String(
     resolvedSummary.accountStatus || "active",
   ).toLowerCase();
@@ -172,10 +172,10 @@ function Dashboard() {
           colorClass="text-[color:var(--success)]"
         />
         <OverviewCard
-          title="Warning Level"
+          title="Quota State"
           value={warningLabel}
           icon={Activity}
-          sublabel="Derived from usage percentage"
+          sublabel="Matches the enforced quota state"
           colorClass="text-[color:var(--primary)]"
         />
       </div>

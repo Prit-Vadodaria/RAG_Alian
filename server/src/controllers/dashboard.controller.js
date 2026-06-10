@@ -7,13 +7,6 @@ const {
   DEFAULT_COOLDOWN_MINUTES,
 } = require("../config/env");
 
-function _warningLevel(percent) {
-  if (percent >= 100) return "exceeded";
-  if (percent >= 90) return "critical";
-  if (percent >= 70) return "warning";
-  return "none";
-}
-
 function _resolveClientId(req) {
   return req.clientId || DEFAULT_CLIENT_ID;
 }
@@ -25,9 +18,6 @@ const getDashboardSummary = async (req, res, next) => {
     const contexts = contextService.listContexts();
     const chatbots = chatbotService.listChatbots();
 
-    const usagePercent =
-      quota.dailyLimit > 0 ? (quota.tokensUsed / quota.dailyLimit) * 100 : 0;
-
     return res.json(
       successResponse({
         clientId,
@@ -38,11 +28,13 @@ const getDashboardSummary = async (req, res, next) => {
         dailyTokenLimit: quota.dailyLimit,
         tokensRemaining: quota.tokensRemaining,
         cooldownDurationMinutes: DEFAULT_COOLDOWN_MINUTES,
-        usagePercent: Number(usagePercent.toFixed(2)),
+        usagePercent: Number(
+          (quota.dailyLimit > 0 ? (quota.tokensUsed / quota.dailyLimit) * 100 : 0).toFixed(2),
+        ),
         accountStatus: quota.status,
         cooldownUntil: quota.cooldownUntil,
         planName: quota.planName,
-        warningLevel: _warningLevel(usagePercent),
+        warningLevel: quota.status,
       }),
     );
   } catch (error) {
