@@ -1,11 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Cog } from "lucide-react";
 import SectionCard from "../components/ui/SectionCard";
-import ContextManager from "../components/context/ContextManager";
-import {
-  DEFAULT_PROMPT_SETTINGS,
-  usePromptSettingsStore,
-} from "../store/promptSettingsStore";
+import { usePromptSettingsStore } from "../store/promptSettingsStore";
 import { useContextStore } from "../store/contextStore";
 
 function normalizeConstraints(text) {
@@ -13,36 +9,6 @@ function normalizeConstraints(text) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-}
-
-function isUsingDefaultPromptSettings(settings) {
-  const currentRole = String(settings?.role || "").trim();
-  const defaultRole = String(DEFAULT_PROMPT_SETTINGS.role || "").trim();
-  const currentConstraints = normalizeConstraints(
-    (settings?.constraints || []).join("\n"),
-  );
-  const defaultConstraints = normalizeConstraints(
-    (DEFAULT_PROMPT_SETTINGS.constraints || []).join("\n"),
-  );
-
-  if (currentRole !== defaultRole) return false;
-  if (currentConstraints.length !== defaultConstraints.length) return false;
-  return currentConstraints.every(
-    (line, index) => line === defaultConstraints[index],
-  );
-}
-
-function isDefaultRoleValue(role) {
-  return String(role || "").trim() === String(DEFAULT_PROMPT_SETTINGS.role || "").trim();
-}
-
-function isDefaultConstraintsValue(constraintsText) {
-  const currentConstraints = normalizeConstraints(constraintsText || "");
-  const defaultConstraints = normalizeConstraints(
-    (DEFAULT_PROMPT_SETTINGS.constraints || []).join("\n"),
-  );
-  if (currentConstraints.length !== defaultConstraints.length) return false;
-  return currentConstraints.every((line, index) => line === defaultConstraints[index]);
 }
 
 function Settings() {
@@ -54,19 +20,9 @@ function Settings() {
   const [constraintsText, setConstraintsText] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [saveError, setSaveError] = useState("");
-  const editBaselineRef = useRef({
-    role: "",
-    constraintsText: "",
-  });
-  const usingDefaults = isUsingDefaultPromptSettings(settings);
 
   useEffect(() => {
     loadSettings();
-    if (window.location.hash === "#knowledge-contexts") {
-      document
-        .getElementById("knowledge-contexts")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
   }, [loadSettings]);
 
   const isDirty = useMemo(() => {
@@ -90,21 +46,10 @@ function Settings() {
   const handleSave = async () => {
     if (!isEditing || !isDirty) return;
 
-    const baselineRole = String(editBaselineRef.current.role || "").trim();
-    const baselineConstraints = normalizeConstraints(
-      editBaselineRef.current.constraintsText || "",
-    );
-    const nextRole = role.trim();
-    const nextConstraints = normalizeConstraints(constraintsText);
-    const constraints =
-      nextConstraints.length === baselineConstraints.length &&
-      nextConstraints.every((line, index) => line === baselineConstraints[index])
-        ? baselineConstraints
-        : nextConstraints;
-    const resolvedRole = nextRole === baselineRole ? baselineRole : nextRole;
+    const constraints = normalizeConstraints(constraintsText);
     setSaveError("");
     try {
-      await saveSettings({ role: resolvedRole, constraints });
+      await saveSettings({ role: role.trim(), constraints });
       setIsEditing(false);
       showToast("Prompt settings saved.", "success");
     } catch (error) {
@@ -115,40 +60,18 @@ function Settings() {
   };
 
   const handleReset = async () => {
-    setSaveError("");
-    try {
-      const next = await resetSettings();
-      setRole(next.role || "");
-      setConstraintsText((next.constraints || []).join("\n"));
-      editBaselineRef.current = {
-        role: next.role || "",
-        constraintsText: (next.constraints || []).join("\n"),
-      };
-      setIsEditing(false);
-      showToast("Prompt settings reset to defaults.", "success");
-    } catch (error) {
-      const message = error.message || String(error);
-      setSaveError(message);
-      showToast(`Failed to reset prompt settings: ${message}`, "error");
-    }
+    const next = await resetSettings();
+    setRole(next.role || "");
+    setConstraintsText((next.constraints || []).join("\n"));
+    setIsEditing(false);
+    showToast("Prompt settings reset to defaults.", "success");
   };
 
   const handleEdit = () => {
-    const nextRole = settings.role || "";
-    const nextConstraintsText = (settings.constraints || []).join("\n");
-    setRole(nextRole);
-    setConstraintsText(nextConstraintsText);
-    editBaselineRef.current = {
-      role: nextRole,
-      constraintsText: nextConstraintsText,
-    };
+    setRole(settings.role || "");
+    setConstraintsText((settings.constraints || []).join("\n"));
     setIsEditing(true);
   };
-
-  const showRoleValue = !isEditing || !isDefaultRoleValue(role) ? role : "";
-  const showConstraintsValue = !isEditing || !isDefaultConstraintsValue(constraintsText)
-    ? constraintsText
-    : "";
 
   return (
     <div className="h-full min-h-0 space-y-6 overflow-y-auto pr-1">
@@ -175,37 +98,26 @@ function Settings() {
         <div className="space-y-3">
           <label className="block text-sm text-[color:var(--body)]">Role</label>
           <textarea
-            value={showRoleValue}
+            value={isEditing ? role : settings.role || ""}
             onChange={(e) => setRole(e.target.value)}
             className="field"
             rows={3}
-            placeholder={
-              usingDefaults
-                ? "Built-in default role is active."
-                : "No role configured."
-            }
             disabled={isLoading || !isEditing}
           />
           <label className="block text-sm text-[color:var(--body)]">
             Additional constraints (one per line)
           </label>
           <textarea
-            value={showConstraintsValue}
+            value={
+              isEditing
+                ? constraintsText
+                : (settings.constraints || []).join("\n")
+            }
             onChange={(e) => setConstraintsText(e.target.value)}
             className="field"
             rows={6}
-            placeholder={
-              usingDefaults
-                ? "Built-in default constraints are active."
-                : "No custom constraints configured."
-            }
             disabled={isLoading || !isEditing}
           />
-          <p className="text-xs text-[color:var(--muted)]">
-            {usingDefaults
-              ? "Built-in defaults are active."
-              : "Custom prompt settings are active."}
-          </p>
           <div className="flex flex-wrap gap-3">
             <button
               onClick={handleEdit}
@@ -234,12 +146,6 @@ function Settings() {
           )}
         </div>
       </SectionCard>
-
-      <div id="knowledge-contexts" className="scroll-mt-6">
-        <SectionCard title="Knowledge contexts">
-          <ContextManager />
-        </SectionCard>
-      </div>
     </div>
   );
 }

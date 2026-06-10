@@ -5,6 +5,7 @@ import Chat from "./pages/Chat";
 import Chatbots from "./pages/Chatbots";
 import System from "./pages/System";
 import Settings from "./pages/Settings";
+import Contexts from "./pages/Contexts";
 
 function App() {
   return (
@@ -13,8 +14,9 @@ function App() {
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Chat />} />
           <Route path="chatbots" element={<Chatbots />} />
+          <Route path="contexts" element={<Contexts />} />
           <Route path="system" element={<System />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="prompt-settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

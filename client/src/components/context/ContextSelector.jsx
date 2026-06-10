@@ -41,10 +41,9 @@ export default function ContextSelector() {
     }
   }, [readyContexts, selectedContext, setSelectedContext]);
 
-  const current =
-    readyContexts.find((c) => c.id === selectedContext) || {
-      name: "Select context",
-    };
+  const current = readyContexts.find((c) => c.id === selectedContext) || {
+    name: "Select context",
+  };
 
   const handleSelect = (contextId) => {
     setSelectedContext(contextId);
@@ -69,7 +68,7 @@ export default function ContextSelector() {
       </button>
 
       {open && (
-        <div className="-mt-px absolute left-0 right-0 z-50 max-h-72 overflow-y-auto rounded-t-none rounded-b-[0.5rem] surface-dark-elevated p-2">
+        <div className="absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-y-auto !rounded-[0.5rem] surface-dark-elevated p-2">
           {readyContexts.length === 0 && (
             <div className="px-2 py-3 text-sm text-[color:var(--on-dark-soft)]">
               No ready contexts
