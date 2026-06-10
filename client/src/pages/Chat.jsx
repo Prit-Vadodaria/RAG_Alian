@@ -177,6 +177,22 @@ function Chat() {
       });
       addMessage(activeChat.id, assistantMessage);
     } catch (error) {
+      if (error?.response?.status === 429) {
+        const quota = error.response.data?.quota || {};
+        const cooldownUntil = quota.cooldownUntil
+          ? new Date(quota.cooldownUntil).toLocaleString()
+          : "later today";
+        const assistantMessage = createMessage({
+          role: "assistant",
+          content:
+            `**Daily token limit reached**\n\n` +
+            `You've used ${(quota.tokensUsed || 0).toLocaleString()} of ${(quota.dailyLimit || 0).toLocaleString()} tokens today.\n\n` +
+            `Chat will resume at **${cooldownUntil}**. Past conversations remain accessible.`,
+        });
+        addMessage(activeChat.id, assistantMessage);
+        return;
+      }
+
       const assistantMessage = createMessage({
         role: "assistant",
         content: `Failed to retrieve answer: ${error.message}`,

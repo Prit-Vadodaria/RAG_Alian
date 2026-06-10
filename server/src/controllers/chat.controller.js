@@ -1,5 +1,6 @@
 const { successResponse, errorResponse } = require("../utils/apiResponse");
 const { askRag } = require("../services/rag.service");
+const { DEFAULT_CLIENT_ID } = require("../config/env");
 
 const chatController = async (req, res, next) => {
   try {
@@ -25,6 +26,7 @@ const chatController = async (req, res, next) => {
       namespace,
       visitor_id,
       origin,
+      clientId: req.clientId || DEFAULT_CLIENT_ID,
     });
 
     return res.json(successResponse(response));

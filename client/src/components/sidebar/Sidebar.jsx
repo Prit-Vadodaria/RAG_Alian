@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
-  MessageSquare,
   Bot,
   Cpu,
   Globe,
   SlidersHorizontal,
+  LayoutDashboard,
   Plus,
   Sparkles,
   ChevronLeft,
@@ -150,10 +150,10 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
 
             <div className="mt-3 flex-shrink-0">
               {showProfileMenu && (
-                <div className="mb-3 surface-dark-soft !rounded-[0.5rem] p-3 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
+                <div className="mb-3 max-h-[calc(100vh-18rem)] overflow-y-auto surface-dark-soft !rounded-[0.5rem] p-3 pr-2 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
                   <nav className="space-y-2">
                     <NavLink
-                      to="/"
+                      to="/dashboard"
                       onClick={handleProfileNavClick}
                       className={({ isActive }) =>
                         `flex items-center gap-3 !rounded-[0.5rem] px-3 py-3 text-sm font-medium transition ${
@@ -163,8 +163,8 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
                         }`
                       }
                     >
-                      <MessageSquare className="h-4 w-4" />
-                      <span>Chat</span>
+                      <LayoutDashboard className="h-4 w-4" />
+                      <span>Dashboard</span>
                     </NavLink>
                     <NavLink
                       to="/chatbots"
@@ -220,7 +220,7 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
                       }
                     >
                       <SlidersHorizontal className="h-4 w-4" />
-                      <span>Prompt Settings</span>
+                      <span>Settings</span>
                     </NavLink>
                   </nav>
                 </div>

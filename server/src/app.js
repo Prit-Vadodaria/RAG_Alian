@@ -5,6 +5,7 @@ const healthRoutes = require("./routes/health.routes");
 const chatRoutes = require("./routes/chat.routes");
 const contextRoutes = require("./routes/context.routes");
 const chatbotRoutes = require("./routes/chatbot.routes");
+const dashboardRoutes = require("./routes/dashboard.routes");
 const publicRoutes = require("./routes/public.routes");
 
 const { errorHandler } = require("./middleware/error.middleware");
@@ -25,7 +26,7 @@ app.use(
       return cb(null, {
         origin: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "x-api-key"],
       });
     }
 
@@ -33,7 +34,7 @@ app.use(
       return cb(null, {
         origin: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "x-api-key"],
       });
     }
 
@@ -53,6 +54,7 @@ app.get("/", (req, res) => {
 app.use("/api/health", healthRoutes);
 
 app.use("/api/chat", chatRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/contexts", contextRoutes);
 app.use("/api/chatbots", chatbotRoutes);
 app.use("/public", publicRoutes);
