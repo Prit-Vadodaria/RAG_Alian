@@ -6,7 +6,7 @@ function ConversationItem({ chat, active, onSelect, onDelete }) {
     <div
       className={`group flex items-center justify-between gap-3 !rounded-[0.5rem] border px-3 py-3 transition ${
         active
-          ? "border-[rgba(201,119,92,0.28)] bg-[rgba(201,119,92,0.12)] text-[color:var(--on-dark)]"
+          ? "border-[rgba(200,255,87,0.28)] bg-[rgba(200,255,87,0.12)] text-[color:var(--on-dark)]"
           : "border-[rgba(255,255,255,0.08)] bg-[color:var(--surface-dark-soft)] text-[color:var(--on-dark-soft)] hover:border-[rgba(255,255,255,0.14)] hover:bg-[color:var(--surface-dark-elevated)] hover:text-[color:var(--on-dark)]"
       }`}
     >

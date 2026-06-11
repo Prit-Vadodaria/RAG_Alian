@@ -106,7 +106,7 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
                     Workspace
                   </p>
                   <h2 className="text-sm font-semibold text-[color:var(--on-dark)]">
-                    Alian private AI
+                    LoreHub private AI
                   </h2>
                 </div>
               </div>

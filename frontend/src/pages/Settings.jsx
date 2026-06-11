@@ -155,7 +155,7 @@ function Settings() {
             <button
               onClick={handleSave}
               disabled={isLoading || !isEditing || !isDirty}
-              className="button-primary !bg-[rgba(255,255,255,0.06)] !text-[color:var(--on-dark)] !shadow-none"
+              className="button-primary"
             >
               Save
             </button>

@@ -3,7 +3,7 @@ import { Sparkles, PlusCircle } from "lucide-react";
 function EmptyState({ onNewChat }) {
   return (
     <div className="surface-page flex min-h-[50vh] flex-col items-center justify-center gap-6 p-10 text-center">
-      <div className="inline-flex h-16 w-16 items-center justify-center rounded-3xl border border-[color:rgba(201,119,92,0.2)] bg-[rgba(201,119,92,0.12)] text-[color:var(--primary)]">
+      <div className="inline-flex h-16 w-16 items-center justify-center rounded-3xl border border-[color:rgba(200,255,87,0.2)] bg-[rgba(200,255,87,0.12)] text-[color:var(--primary)]">
         <Sparkles className="h-8 w-8" />
       </div>
       <div className="max-w-xl space-y-4">

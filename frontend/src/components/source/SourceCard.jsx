@@ -5,7 +5,7 @@ function SourceCard({ source, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen(source)}
-      className="group w-full surface-dark-soft p-4 text-left transition hover:border-[rgba(201,119,92,0.3)] hover:bg-[color:var(--surface-dark-elevated)]"
+      className="group w-full surface-dark-soft p-4 text-left transition hover:border-[rgba(200,255,87,0.3)] hover:bg-[color:var(--surface-dark-elevated)]"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
