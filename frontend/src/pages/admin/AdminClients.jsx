@@ -99,7 +99,7 @@ function AdminClients() {
                       <button type="button" onClick={() => toggleStatus(client)} className="button-secondary px-3 py-2" disabled={busyClientId === client.id}>
                         {busyClientId === client.id ? "Working..." : client.status === "active" ? "Disable" : "Enable"}
                       </button>
-                      <button type="button" onClick={() => remove(client)} className="button-secondary px-3 py-2" disabled={busyClientId === client.id}>
+                      <button type="button" onClick={() => remove(client)} className="button-danger px-3 py-2" disabled={busyClientId === client.id}>
                         {busyClientId === client.id ? "Working..." : "Delete"}
                       </button>
                     </div>

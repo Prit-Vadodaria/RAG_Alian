@@ -179,7 +179,7 @@ function AdminClientDetail() {
           <button type="button" onClick={toggleStatus} disabled={busyAction !== ""} className="button-secondary w-full justify-center">
             {busyAction === "toggle" ? "Updating..." : data.user.status === "active" ? "Disable" : "Enable"}
           </button>
-          <button type="button" onClick={remove} disabled={busyAction !== ""} className="button-secondary w-full justify-center">
+          <button type="button" onClick={remove} disabled={busyAction !== ""} className="button-danger w-full justify-center">
             {busyAction === "delete" ? "Deleting..." : "Delete client"}
           </button>
         </aside>

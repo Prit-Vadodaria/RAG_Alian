@@ -1,32 +1,4 @@
 {
   "version": 1,
-  "contexts": [
-    {
-      "id": "hansalpatel-tech_d0489d77",
-      "name": "hansalpatel.tech",
-      "seed_url": "https://hansalpatel.tech/",
-      "client_id": "client_c4c23abe",
-      "status": "ready",
-      "path": "websites/hansalpatel-tech_d0489d77",
-      "is_default": false,
-      "is_deletable": true,
-      "chunking": {
-        "maxChunkTokens": 100,
-        "minChunkTokens": 25,
-        "chunkOverlapTokens": 20
-      },
-      "total_urls": 1,
-      "pending_urls": 0,
-      "processed_urls": 1,
-      "indexed_urls": 1,
-      "failed_urls": 0,
-      "current_batch": 0,
-      "total_batches": 0,
-      "last_completed_batch": 0,
-      "stop_reason": "",
-      "ingestion_pid": 9840,
-      "current_url": "",
-      "embedding_buffer_size": 0
-    }
-  ]
+  "contexts": []
 }
