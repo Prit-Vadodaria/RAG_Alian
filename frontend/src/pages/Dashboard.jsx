@@ -85,6 +85,7 @@ function Dashboard() {
   const loading = useDashboardStore((state) => state.loading);
   const error = useDashboardStore((state) => state.error);
   const fetchSummary = useDashboardStore((state) => state.fetchSummary);
+  const resetUsage = useDashboardStore((state) => state.resetUsage);
 
   useEffect(() => {
     fetchSummary();
@@ -103,10 +104,10 @@ function Dashboard() {
   ).toLowerCase();
   const quotaDefaults = resolvedSummary.quotaDefaults || {};
   const quotaEffective = resolvedSummary.quotaEffective || {};
-  const hasOverride =
-    Number(quotaEffective.dailyTokenLimit || 0) !== Number(quotaDefaults.dailyTokenLimit || 0) ||
+  const hasGenerationConfig = Boolean(resolvedSummary.hasGenerationConfig);
+  const hasCooldownOverride =
     Number(quotaEffective.cooldownDurationMinutes || 0) !==
-      Number(quotaDefaults.cooldownDurationMinutes || 0);
+    Number(quotaDefaults.cooldownDurationMinutes || 0);
 
   if (loading && !summary) {
     return <DashboardSkeleton />;
@@ -125,17 +126,27 @@ function Dashboard() {
               Track token usage, quota state, and the current workspace activity at a glance.
             </p>
           </div>
-          <div className={`inline-flex items-center gap-2 self-start rounded-full border px-4 py-2 text-sm font-semibold capitalize ${statusTone(accountStatus)}`}>
-            {accountStatus === "active" ? (
-              <CircleCheckBig className="h-4 w-4" />
-            ) : accountStatus === "cooldown" ? (
-              <AlertTriangle className="h-4 w-4" />
-            ) : accountStatus === "limited" ? (
-              <CircleAlert className="h-4 w-4" />
-            ) : (
-              <Shield className="h-4 w-4" />
-            )}
-            <span>{accountStatus === "active" ? "Healthy" : accountStatus}</span>
+          <div className="flex flex-col gap-3 self-start">
+            <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold capitalize ${statusTone(accountStatus)}`}>
+              {accountStatus === "active" ? (
+                <CircleCheckBig className="h-4 w-4" />
+              ) : accountStatus === "cooldown" ? (
+                <AlertTriangle className="h-4 w-4" />
+              ) : accountStatus === "limited" ? (
+                <CircleAlert className="h-4 w-4" />
+              ) : (
+                <Shield className="h-4 w-4" />
+              )}
+              <span>{accountStatus === "active" ? "Healthy" : accountStatus}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => resetUsage()}
+              disabled={loading}
+              className="button-secondary self-end"
+            >
+              Reset usage
+            </button>
           </div>
         </div>
         {resolvedSummary.planName ? (
@@ -145,21 +156,19 @@ function Dashboard() {
         ) : null}
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="surface-card p-4">
-            <p className="text-kicker">Platform default</p>
-            <p className="mt-2 text-lg font-semibold text-[color:var(--on-dark)]">
-              {formatNumber(quotaDefaults.dailyTokenLimit || resolvedSummary.dailyTokenLimit)}
-            </p>
-            <p className="mt-1 text-xs text-[color:var(--on-dark-soft)]">
-              Daily token limit from admin config
-            </p>
-          </div>
-          <div className="surface-card p-4">
-            <p className="text-kicker">Effective limit</p>
+            <p className="text-kicker">Configured limit</p>
             <p className="mt-2 text-lg font-semibold text-[color:var(--on-dark)]">
               {formatNumber(resolvedSummary.dailyTokenLimit)}
             </p>
             <p className="mt-1 text-xs text-[color:var(--on-dark-soft)]">
-              {hasOverride ? "Client override applied" : "Using platform default"}
+              {hasGenerationConfig ? "From your AI configuration" : "Configure your AI key first"}
+            </p>
+          </div>
+          <div className="surface-card p-4">
+            <p className="text-kicker">Quota source</p>
+            <p className="mt-2 text-lg font-semibold text-[color:var(--on-dark)]">{formatQuotaSource(hasGenerationConfig ? "override" : "default")}</p>
+            <p className="mt-1 text-xs text-[color:var(--on-dark-soft)]">
+              {hasGenerationConfig ? "Client-owned generation settings" : "No AI config on file"}
             </p>
           </div>
           <div className="surface-card p-4">
@@ -168,7 +177,7 @@ function Dashboard() {
               {formatResetLabel(quotaDefaults.cooldownDurationMinutes || resolvedSummary.cooldownDurationMinutes)}
             </p>
             <p className="mt-1 text-xs text-[color:var(--on-dark-soft)]">
-              {formatQuotaSource(hasOverride ? "override" : "default")}
+              {formatQuotaSource(hasCooldownOverride ? "override" : "default")}
             </p>
           </div>
         </div>
@@ -204,7 +213,7 @@ function Dashboard() {
           title="Daily Limit"
           value={formatNumber(resolvedSummary.dailyTokenLimit)}
           icon={Shield}
-          sublabel={`${formatResetLabel(resolvedSummary.cooldownDurationMinutes)} · ${formatQuotaSource(hasOverride ? "override" : "default")}`}
+          sublabel={`${formatResetLabel(resolvedSummary.cooldownDurationMinutes)} · ${formatQuotaSource(hasGenerationConfig ? "override" : "default")}`}
         />
         <OverviewCard
           title="Remaining"

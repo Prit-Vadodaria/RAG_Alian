@@ -1,4 +1,5 @@
 const authService = require("./auth.service");
+const clientConfigService = require("./client-config.service");
 const chatbotService = require("./chatbot.service");
 const contextService = require("./context.service");
 const tokenService = require("./token.service");
@@ -25,6 +26,16 @@ function runStartupMigrations() {
 
   tokenService.getOrCreateClient(DEFAULT_CLIENT_ID);
   results.quotaSeeded = true;
+
+  const clients = authService.listUsers().filter((user) => user.role === "client");
+  const unconfigured = clients.filter(
+    (user) => !clientConfigService.clientConfigExists(user.client_id),
+  );
+  if (unconfigured.length > 0) {
+    console.warn(
+      `[migration] ${unconfigured.length} client(s) have no generation config and cannot submit queries until configured.`,
+    );
+  }
 
   return results;
 }

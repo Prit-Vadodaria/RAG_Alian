@@ -12,6 +12,10 @@ const unwrap = (response) => response.data?.data ?? response.data;
 export const getDashboardSummary = async () =>
   unwrap(await client.get("/dashboard/summary"));
 
+export const resetUsage = async () =>
+  unwrap(await client.post("/dashboard/usage/reset"));
+
 export default {
   getDashboardSummary,
+  resetUsage,
 };

@@ -14,6 +14,7 @@ import {
   ChevronUp,
   ChevronDown,
   UserRound,
+  Key,
 } from "lucide-react";
 
 import NewChatButton from "./NewChatButton";
@@ -133,7 +134,7 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
               <div className="flex-shrink-0 flex items-center gap-2">
                 <NewChatButton onCreate={handleNewChat} className="flex-1" />
                 <NavLink
-                  to="/contexts"
+                  to="/contexts#add-context"
                   onClick={onClose}
                   className="button-secondary"
                   aria-label="Manage contexts"
@@ -227,9 +228,23 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
                             : "text-[color:var(--on-dark-soft)]"
                         }`
                       }
-                    >
+                      >
                       <SlidersHorizontal className="h-4 w-4" />
                       <span>Prompt Settings</span>
+                    </NavLink>
+                    <NavLink
+                      to="/ai-config"
+                      onClick={handleProfileNavClick}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 !rounded-[0.5rem] px-3 py-3 text-sm font-medium transition ${
+                          isActive
+                            ? "border border-[rgba(255,255,255,0.08)] bg-[color:var(--surface-dark-elevated)] text-[color:var(--on-dark)]"
+                            : "text-[color:var(--on-dark-soft)]"
+                        }`
+                      }
+                    >
+                      <Key className="h-4 w-4" />
+                      <span>AI Configuration</span>
                     </NavLink>
                     <button
                       type="button"

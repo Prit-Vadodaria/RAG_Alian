@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const { spawn, spawnSync } = require("child_process");
 const { deleteChatbotsByContext } = require("./chatbot.service");
 const { DEFAULT_CLIENT_ID } = require("../config/env");
+const configService = require("./config.service");
 
 const RAG_ENGINE_DIR = path.resolve(__dirname, "../../../rag_engine");
 const RAG_WEBSITES_DIR = path.join(RAG_ENGINE_DIR, "websites");
@@ -297,6 +298,19 @@ function _refreshRegistryContext(contextId, changes) {
 
 function createContext(url, options = {}, clientId = null) {
   ensureWebsitesDir();
+  const normalizedClientId = clientId === null ? null : String(clientId || "").trim() || null;
+  if (normalizedClientId) {
+    const config = configService.getConfig();
+    const maxContexts = Math.max(0, Number(config?.registration?.max_contexts_per_client ?? 0) || 0);
+    if (maxContexts > 0) {
+      const currentCount = listContexts(normalizedClientId).length;
+      if (currentCount >= maxContexts) {
+        const error = new Error(`Maximum website contexts per user reached (${maxContexts}).`);
+        error.status = 403;
+        throw error;
+      }
+    }
+  }
 
   let parsed;
   try {
@@ -341,7 +355,7 @@ function createContext(url, options = {}, clientId = null) {
     name: parsed.hostname,
     url,
     seed_url: url,
-    client_id: clientId === null ? null : String(clientId || "").trim() || null,
+    client_id: normalizedClientId,
     status: DISCOVERING,
     is_deletable: true,
     chunking,
@@ -365,7 +379,7 @@ function createContext(url, options = {}, clientId = null) {
     id,
     name: parsed.hostname,
     seed_url: url,
-    client_id: clientId === null ? null : String(clientId || "").trim() || null,
+    client_id: normalizedClientId,
     status: DISCOVERING,
     path: relPath.replace(/\\/g, "/"),
     is_default: false,

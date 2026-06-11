@@ -17,4 +17,5 @@ async def ask_route(request: AskRequestSchema) -> AskResponseSchema:
         visitor_id=request.visitor_id,
         origin=request.origin,
         prompt_settings=request.prompt_settings.model_dump() if request.prompt_settings else None,
+        generation_config=request.generation_config.model_dump() if request.generation_config else None,
     )

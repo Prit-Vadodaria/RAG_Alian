@@ -63,6 +63,7 @@ function AdminClients() {
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">AI Key</th>
                 <th className="px-4 py-3">Contexts</th>
                 <th className="px-4 py-3">Chatbots</th>
                 <th className="px-4 py-3">Usage</th>
@@ -83,6 +84,13 @@ function AdminClients() {
                       {client.status}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    {client.hasGenerationConfig ? (
+                      <span className="text-[color:var(--success)]">Configured</span>
+                    ) : (
+                      <span className="text-[color:var(--error)]">Not configured</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">{client.contextCount}</td>
                   <td className="px-4 py-3">{client.chatbotCount}</td>
                   <td className="px-4 py-3">{client.tokensUsedToday}</td>
@@ -100,7 +108,7 @@ function AdminClients() {
               ))}
               {!loading && clients.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-8 text-center text-sm text-[color:var(--on-dark-soft)]" colSpan={7}>
+                  <td className="px-4 py-8 text-center text-sm text-[color:var(--on-dark-soft)]" colSpan={8}>
                     No client accounts yet.
                   </td>
                 </tr>

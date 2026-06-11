@@ -9,6 +9,7 @@ const chatbotRoutes = require("./routes/chatbot.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const adminRoutes = require("./routes/admin.routes");
 const configRoutes = require("./routes/config.routes");
+const aiConfigRoutes = require("./routes/ai-config.routes");
 const publicRoutes = require("./routes/public.routes");
 
 const { errorHandler } = require("./middleware/error.middleware");
@@ -60,6 +61,7 @@ app.use("/api/auth", authRoutes);
 
 app.use("/api/chat", attachAuthContext, chatRoutes);
 app.use("/api/dashboard", attachAuthContext, dashboardRoutes);
+app.use("/api/ai-config", attachAuthContext, aiConfigRoutes);
 app.use("/api/contexts", attachAuthContext, contextRoutes);
 app.use("/api/chatbots", attachAuthContext, chatbotRoutes);
 app.use("/api/admin", attachAuthContext, requireAdmin, adminRoutes);

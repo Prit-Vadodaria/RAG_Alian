@@ -215,44 +215,39 @@
 
   function getThemePalette() {
     const themeConfig = state.config?.theme || {};
+    const primary = themeConfig.primary || "#0099ff";
     if (state.theme === "light") {
-      const accent = themeConfig.accent || "#0099ff";
       return {
         canvas: "#ffffff",
         surface1: "#f8f8f8",
-        surface2: "#eeeeee",
+        surface2: "#ededed",
         text: "#111111",
         textMuted: "#666666",
-        accent,
-        error: "#d0344d",
+        primary,
+        error: primary,
         border: "#dddddd",
         borderSoft: "#e9e9e9",
         shadow: "rgba(0, 0, 0, 0.12)",
         shadowStrong: "rgba(0, 0, 0, 0.18)",
-        userGradient:
-          themeConfig.user_gradient ||
-          `linear-gradient(135deg, ${accent}, #6cb8ff)`,
+        userSolid: primary,
         userText: "#ffffff",
         mutedBg: "rgba(0, 0, 0, 0.03)",
         overlay: "rgba(17, 17, 17, 0.08)",
       };
     }
-    const accent = themeConfig.accent || "#0099ff";
     return {
-      canvas: "#090909",
-      surface1: "#141414",
-      surface2: "#1c1c1c",
+      canvas: "#000000",
+      surface1: "#111111",
+      surface2: "#1a1a1a",
       text: "#ffffff",
       textMuted: "#999999",
-      accent,
-      error: "#f87171",
+      primary,
+      error: primary,
       border: "#262626",
       borderSoft: "#1a1a1a",
       shadow: "rgba(0, 0, 0, 0.42)",
       shadowStrong: "rgba(0, 0, 0, 0.56)",
-      userGradient:
-        themeConfig.user_gradient ||
-        `linear-gradient(135deg, ${accent}, #5a69ff)`,
+      userSolid: primary,
       userText: "#ffffff",
       mutedBg: "rgba(255, 255, 255, 0.04)",
       overlay: "rgba(0, 0, 0, 0.38)",
@@ -559,13 +554,13 @@
         --surface-2: ${palette.surface2};
         --text: ${palette.text};
         --text-muted: ${palette.textMuted};
-        --accent: ${palette.accent};
+        --primary: ${palette.primary};
         --error: ${palette.error};
         --border: ${palette.border};
         --border-soft: ${palette.borderSoft};
         --shadow: ${palette.shadow};
         --shadow-strong: ${palette.shadowStrong};
-        --user-gradient: ${palette.userGradient};
+        --user-solid: ${palette.userSolid};
         --user-text: ${palette.userText};
         --muted-bg: ${palette.mutedBg};
         --overlay: ${palette.overlay};
@@ -609,7 +604,7 @@
         width: 60px;
         height: 60px;
         display: block;
-        filter: drop-shadow(0 14px 26px rgba(0, 153, 255, 0.16));
+        filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.22));
       }
       .launcher-dot {
         transform-box: fill-box;
@@ -631,7 +626,7 @@
         filter: brightness(1.04);
       }
       .launcher:focus-visible {
-        outline: 2px solid rgba(0, 153, 255, 0.6);
+        outline: 2px solid color-mix(in srgb, var(--primary) 70%, white);
         outline-offset: 4px;
       }
       .sr-only {
@@ -666,7 +661,7 @@
         overflow: hidden;
         display: ${state.open ? "flex" : "none"};
         flex-direction: column;
-        background: radial-gradient(circle at top, rgba(255,255,255,0.035), transparent 32%), var(--canvas);
+        background: var(--canvas);
         color: var(--text);
         border: 1px solid var(--border);
         box-shadow: 0 28px 90px var(--shadow-strong);
@@ -685,7 +680,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+        background: var(--canvas);
         border-bottom: 1px solid var(--border);
         backdrop-filter: blur(12px);
       }
@@ -769,8 +764,9 @@
         border: 1px solid var(--border);
       }
       .new-chat {
-        background: linear-gradient(135deg, rgba(0, 153, 255, 0.18), rgba(90, 105, 255, 0.14));
-        border-color: rgba(0, 153, 255, 0.24);
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #ffffff;
       }
       .history-toggle:hover,
       .new-chat:hover,
@@ -866,17 +862,17 @@
         cursor: pointer;
       }
       .history-item:hover {
-        background: color-mix(in srgb, var(--surface-2) 70%, var(--text) 6%);
-        border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 20%);
+        background: color-mix(in srgb, var(--surface-2) 75%, var(--text) 5%);
+        border-color: color-mix(in srgb, var(--border) 65%, var(--primary) 35%);
       }
       .history-item.active {
-        background: linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 84%, var(--accent) 16%), color-mix(in srgb, var(--surface-2) 90%, var(--accent) 10%));
-        border-color: color-mix(in srgb, var(--accent) 35%, var(--border) 65%);
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+        background: color-mix(in srgb, var(--surface-2) 90%, var(--primary) 10%);
+        border-color: color-mix(in srgb, var(--primary) 55%, var(--border) 45%);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent);
       }
       .history-item.delete-confirm {
-        border-color: rgba(248, 113, 113, 0.32);
-        background: rgba(127, 29, 29, 0.22);
+        border-color: color-mix(in srgb, var(--primary) 45%, var(--border) 55%);
+        background: color-mix(in srgb, var(--surface-2) 82%, var(--primary) 18%);
       }
       .history-row {
         display: flex;
@@ -912,9 +908,9 @@
         min-height: 28px;
         padding: 0 10px;
         border-radius: 999px;
-        background: color-mix(in srgb, var(--error) 12%, transparent);
-        color: color-mix(in srgb, var(--error) 30%, white);
-        border: 1px solid color-mix(in srgb, var(--error) 18%, transparent);
+        background: color-mix(in srgb, var(--primary) 12%, transparent);
+        color: color-mix(in srgb, var(--primary) 30%, white);
+        border: 1px solid color-mix(in srgb, var(--primary) 18%, transparent);
         font-size: 12px;
       }
       .history-item:hover .history-delete,
@@ -940,9 +936,9 @@
         border: 1px solid var(--border);
       }
       .confirm-button.delete {
-        background: color-mix(in srgb, var(--error) 16%, transparent);
-        color: color-mix(in srgb, var(--error) 32%, white);
-        border: 1px solid color-mix(in srgb, var(--error) 22%, transparent);
+        background: color-mix(in srgb, var(--primary) 16%, transparent);
+        color: color-mix(in srgb, var(--primary) 32%, white);
+        border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
       }
       .backdrop {
         position: absolute;
@@ -975,7 +971,7 @@
         justify-content: space-between;
         gap: 10px;
         border-bottom: 1px solid var(--border);
-        background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+        background: var(--canvas);
       }
       .conversation-header .summary {
         min-width: 0;
@@ -1034,10 +1030,10 @@
       }
       .user {
         align-self: flex-end;
-        background: var(--user-gradient);
+        background: var(--user-solid);
         color: var(--user-text);
         border-bottom-right-radius: 7px;
-        box-shadow: 0 10px 28px rgba(0, 153, 255, 0.16);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
       }
       .assistant {
         align-self: flex-start;
@@ -1070,7 +1066,7 @@
         width: 7px;
         height: 7px;
         border-radius: 999px;
-        background: var(--accent);
+        background: var(--primary);
         opacity: 0.85;
         animation: typingDotPulse 1.2s ease-in-out infinite;
       }
@@ -1096,7 +1092,7 @@
       .composer-wrap {
         padding: 12px;
         border-top: 1px solid var(--border);
-        background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--canvas) 84%, var(--surface-1) 16%));
+        background: var(--canvas);
       }
       .composer {
         display: flex;
@@ -1124,8 +1120,8 @@
         color: var(--text-muted);
       }
       .input:focus {
-        border-color: rgba(0, 153, 255, 0.54);
-        box-shadow: 0 0 0 3px rgba(0, 153, 255, 0.12);
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
         background: var(--surface-2);
       }
       .send {
@@ -1133,11 +1129,11 @@
         height: 40px;
         padding: 0 14px;
         border-radius: 14px;
-        background: linear-gradient(135deg, var(--accent), #6cb8ff);
+        background: var(--primary);
         color: #ffffff;
         font-weight: 700;
         cursor: pointer;
-        box-shadow: 0 10px 24px rgba(0, 153, 255, 0.16);
+        box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 18%, transparent);
       }
       .send:disabled,
       .input:disabled,
@@ -1263,13 +1259,7 @@
       <style>${styleText()}</style>
       <button class="launcher" title="Open chat" aria-label="Open chat">
         <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-          <defs>
-            <linearGradient id="launcher-gradient-${chatbotId}" x1="14" y1="10" x2="54" y2="56" gradientUnits="userSpaceOnUse">
-              <stop offset="0" stop-color="var(--accent)" />
-              <stop offset="1" stop-color="#6cb8ff" />
-            </linearGradient>
-          </defs>
-          <circle cx="32" cy="32" r="30" fill="url(#launcher-gradient-${chatbotId})" />
+          <circle cx="32" cy="32" r="30" fill="var(--primary)" />
           <path
             d="M20.5 22.5h23a8.5 8.5 0 0 1 8.5 8.5v4.5a8.5 8.5 0 0 1-8.5 8.5H33.5L24 49v-5.5h-3.5a8.5 8.5 0 0 1-8.5-8.5V31a8.5 8.5 0 0 1 8.5-8.5Z"
             fill="none"

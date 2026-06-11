@@ -1,5 +1,6 @@
 const fs = require("fs");
 const authService = require("./auth.service");
+const clientConfigService = require("./client-config.service");
 const chatbotService = require("./chatbot.service");
 const contextService = require("./context.service");
 const tokenService = require("./token.service");
@@ -59,6 +60,7 @@ function listClients() {
   const users = authService.listUsers().filter((user) => user.role === "client");
   return users.map((user) => {
     const clientId = user.client_id;
+    const genConfig = clientConfigService.getPublicClientConfig(clientId);
     const contexts = contextService.listContexts(clientId);
     const chatbots = chatbotService.listChatbots(clientId);
     const quota = tokenService.checkQuotaStatus(clientId);
@@ -68,7 +70,9 @@ function listClients() {
       chatbotCount: chatbots.length,
       tokensUsedToday: quota.tokensUsed,
       quotaStatus: quota.status,
-      dailyLimit: quota.dailyLimit,
+      dailyLimit: genConfig?.dailyTokenLimit || quota.dailyLimit,
+      hasGenerationConfig: Boolean(genConfig?.hasApiKey),
+      generationModel: genConfig?.model || null,
     };
   });
 }
@@ -76,6 +80,7 @@ function listClients() {
 function getClientDetails(clientId) {
   const user = authService.findUserById(clientId);
   if (!user) return null;
+  const genConfig = clientConfigService.getPublicClientConfig(user.client_id);
   const quota = tokenService.checkQuotaStatus(user.client_id);
   return {
     user,
@@ -83,6 +88,7 @@ function getClientDetails(clientId) {
     chatbots: chatbotService.listChatbots(user.client_id),
     quota,
     todayUsage: tokenService.getDailyUsage(user.client_id),
+    genConfig,
   };
 }
 
@@ -129,6 +135,7 @@ function deleteClient(clientId) {
   const quotaState = _readJson(tokenService.QUOTA_STATE_PATH, { version: 1, clients: {} });
   delete quotaState.clients?.[clientScope];
   _writeJson(tokenService.QUOTA_STATE_PATH, quotaState);
+  clientConfigService.deleteClientConfig(clientScope);
 
   return authService.deleteUser(user.id);
 }
@@ -153,6 +160,10 @@ function resetClientUsage(clientId) {
   return tokenService.checkQuotaStatus(clientScope);
 }
 
+function listUnconfiguredClients() {
+  return listClients().filter((client) => !client.hasGenerationConfig);
+}
+
 module.exports = {
   getStats,
   listClients,
@@ -160,4 +171,5 @@ module.exports = {
   updateClientStatus,
   deleteClient,
   resetClientUsage,
+  listUnconfiguredClients,
 };

@@ -12,9 +12,66 @@ from src.api.schemas.response_schema import (
     SourceSchema,
 )
 from src.rag.rag_pipeline import RagPipeline
+from src.retrieval.pipeline import RetrievalPipeline
+from src.llm.generation import GoogleGenerationBackend, GoogleGenerationConfig
+from src.config.settings import (
+    GOOGLE_API_KEY,
+    GOOGLE_API_VERSION,
+    GOOGLE_MAX_OUTPUT_TOKENS,
+    GOOGLE_MAX_RETRIES,
+    GOOGLE_MODEL,
+    GOOGLE_RETRY_BACKOFF,
+    GOOGLE_TEMPERATURE,
+    GOOGLE_TIMEOUT_SECONDS,
+)
 
 
-_pipeline = RagPipeline()
+_shared_retrieval_pipeline = RetrievalPipeline()
+
+
+def _number_or_default(value: object, default: int | float) -> int | float:
+    if value is None or value == "":
+        return default
+    try:
+        return type(default)(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _build_generation_backend(gen_config: dict[str, object] | None):
+    if not gen_config:
+        return GoogleGenerationBackend(
+            GoogleGenerationConfig(
+                api_key=GOOGLE_API_KEY,
+                model=GOOGLE_MODEL,
+                api_version=GOOGLE_API_VERSION,
+                timeout_seconds=GOOGLE_TIMEOUT_SECONDS,
+                temperature=GOOGLE_TEMPERATURE,
+                max_output_tokens=GOOGLE_MAX_OUTPUT_TOKENS,
+                max_retries=GOOGLE_MAX_RETRIES,
+                retry_backoff=GOOGLE_RETRY_BACKOFF,
+            )
+        )
+
+    api_key = str(gen_config.get("google_api_key") or "").strip()
+    if not api_key:
+        raise HTTPException(
+            status_code=403,
+            detail="Generation configuration is required. Configure your Google API key in account settings.",
+        )
+
+    return GoogleGenerationBackend(
+        GoogleGenerationConfig(
+            api_key=api_key,
+            model=str(gen_config.get("model") or GOOGLE_MODEL),
+            api_version=GOOGLE_API_VERSION,
+            timeout_seconds=int(_number_or_default(gen_config.get("timeout_seconds"), GOOGLE_TIMEOUT_SECONDS)),
+            temperature=float(_number_or_default(gen_config.get("temperature"), GOOGLE_TEMPERATURE)),
+            max_output_tokens=int(_number_or_default(gen_config.get("max_output_tokens"), GOOGLE_MAX_OUTPUT_TOKENS)),
+            max_retries=int(_number_or_default(gen_config.get("max_retries"), GOOGLE_MAX_RETRIES)),
+            retry_backoff=float(_number_or_default(gen_config.get("retry_backoff"), GOOGLE_RETRY_BACKOFF)),
+        )
+    )
 
 
 def _serialize_sources(sources: list[Any]) -> list[SourceSchema]:
@@ -41,6 +98,7 @@ def ask_query(
     visitor_id: str | None = None,
     origin: str | None = None,
     prompt_settings: dict[str, object] | None = None,
+    generation_config: dict[str, object] | None = None,
 ) -> AskResponseSchema:
     stripped_query = query.strip() if isinstance(query, str) else ""
     if not stripped_query:
@@ -49,7 +107,12 @@ def ask_query(
     start_time = time.perf_counter()
 
     try:
-        result = _pipeline.run(
+        backend = _build_generation_backend(generation_config)
+        pipeline = RagPipeline(
+            retrieval_pipeline=_shared_retrieval_pipeline,
+            generation_backend=backend,
+        )
+        result = pipeline.run(
             stripped_query,
             context_id=context_id,
             chatbot_id=chatbot_id,

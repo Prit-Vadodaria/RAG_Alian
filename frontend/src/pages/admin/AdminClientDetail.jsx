@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { deleteClient, getClient, resetClientUsage, updateClient } from "../../services/admin";
+import { deleteClient, getClient, updateClient } from "../../services/admin";
 
 function AdminClientDetail() {
   const { id } = useParams();
@@ -23,7 +23,30 @@ function AdminClientDetail() {
   };
 
   useEffect(() => {
-    refresh();
+    let active = true;
+
+    (async () => {
+      if (!active) return;
+      setLoading(true);
+      setError("");
+      try {
+        const clientData = await getClient(id);
+        if (!active) return;
+        setData(clientData);
+      } catch (err) {
+        if (!active) return;
+        setError(err.message || String(err));
+        setData(null);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   const toggleStatus = async () => {
@@ -42,16 +65,6 @@ function AdminClientDetail() {
     try {
       await deleteClient(data.user.id);
       window.history.back();
-    } finally {
-      setBusyAction("");
-    }
-  };
-
-  const resetUsage = async () => {
-    setBusyAction("reset");
-    try {
-      await resetClientUsage(data.user.id);
-      await refresh();
     } finally {
       setBusyAction("");
     }
@@ -138,19 +151,38 @@ function AdminClientDetail() {
               </ul>
             )}
           </div>
+          <div className="surface-page p-5">
+            <p className="text-kicker">AI Configuration</p>
+            <div className="mt-3 space-y-2 text-sm text-[color:var(--on-dark-soft)]">
+              <p>
+                API Key:{" "}
+                {data.genConfig?.hasApiKey ? (
+                  <span className="text-[color:var(--success)]">Configured</span>
+                ) : (
+                  <span className="text-[color:var(--error)]">Not configured</span>
+                )}
+              </p>
+              <p>Model: {data.genConfig?.model || "—"}</p>
+              <p>
+                Daily Limit:{" "}
+                {data.genConfig?.hasApiKey ? Number(data.genConfig?.dailyTokenLimit || 0).toLocaleString() : "—"}
+              </p>
+              <p>
+                Configured:{" "}
+                {data.genConfig?.configuredAt ? new Date(data.genConfig.configuredAt).toLocaleString() : "Never"}
+              </p>
+            </div>
           </div>
+        </div>
         <aside className="surface-page space-y-3 p-5">
           <p className="text-kicker">Actions</p>
           <button type="button" onClick={toggleStatus} disabled={busyAction !== ""} className="button-secondary w-full justify-center">
             {busyAction === "toggle" ? "Updating..." : data.user.status === "active" ? "Disable" : "Enable"}
           </button>
-          <button type="button" onClick={resetUsage} disabled={busyAction !== ""} className="button-secondary w-full justify-center">
-            {busyAction === "reset" ? "Resetting..." : "Reset usage"}
-          </button>
           <button type="button" onClick={remove} disabled={busyAction !== ""} className="button-secondary w-full justify-center">
             {busyAction === "delete" ? "Deleting..." : "Delete client"}
           </button>
-          </aside>
+        </aside>
         </div>
       </div>
   );

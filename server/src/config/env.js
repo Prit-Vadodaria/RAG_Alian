@@ -18,6 +18,7 @@ const DEFAULT_COOLDOWN_MINUTES = Number(
   process.env.DEFAULT_COOLDOWN_MINUTES || 1440,
 );
 const OWNER_API_KEY = process.env.OWNER_API_KEY || "";
+const BYOK_ENABLED = String(process.env.BYOK_ENABLED || "true").toLowerCase() !== "false";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@platform.local";
 const ADMIN_NAME = process.env.ADMIN_NAME || "Platform Admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "changeme123";
@@ -36,6 +37,7 @@ module.exports = {
   DEFAULT_DAILY_TOKEN_LIMIT,
   DEFAULT_COOLDOWN_MINUTES,
   OWNER_API_KEY,
+  BYOK_ENABLED,
   ADMIN_EMAIL,
   ADMIN_NAME,
   ADMIN_PASSWORD,

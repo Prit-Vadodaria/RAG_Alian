@@ -1,7 +1,9 @@
-const { successResponse } = require("../utils/apiResponse");
+const { successResponse, errorResponse } = require("../utils/apiResponse");
 const chatbotService = require("../services/chatbot.service");
 const contextService = require("../services/context.service");
 const configService = require("../services/config.service");
+const clientConfigService = require("../services/client-config.service");
+const adminService = require("../services/admin.service");
 const tokenService = require("../services/token.service");
 const { DEFAULT_CLIENT_ID } = require("../config/env");
 
@@ -21,6 +23,7 @@ const getDashboardSummary = async (req, res, next) => {
     const config = configService.getConfig();
     const quota = tokenService.checkQuotaStatus(clientId);
     const effectiveQuota = tokenService.getEffectiveQuota(clientId);
+    const genConfig = clientConfigService.getPublicClientConfig(clientId);
     const contexts = contextService.listContexts(clientId);
     const chatbots = chatbotService.listChatbots(clientId);
 
@@ -31,7 +34,7 @@ const getDashboardSummary = async (req, res, next) => {
         chatbotsCreated: chatbots.length,
         todayTokensUsed: quota.tokensUsed,
         todayRequests: tokenService.getDailyUsage(clientId).totalRequests,
-        dailyTokenLimit: effectiveQuota.dailyTokenLimit,
+        dailyTokenLimit: genConfig?.dailyTokenLimit || quota.dailyLimit,
         tokensRemaining: quota.tokensRemaining,
         cooldownDurationMinutes: Number(config?.quotas?.default_cooldown_minutes || quota.cooldownDurationMinutes || 0),
         usagePercent: Number(
@@ -42,10 +45,10 @@ const getDashboardSummary = async (req, res, next) => {
         planName: quota.planName,
         warningLevel: quota.status,
         quotaDefaults: {
-          dailyTokenLimit: Number(config?.quotas?.default_daily_token_limit || 0),
           cooldownDurationMinutes: Number(config?.quotas?.default_cooldown_minutes || 0),
         },
         quotaEffective: effectiveQuota,
+        hasGenerationConfig: Boolean(genConfig?.hasApiKey),
       }),
     );
   } catch (error) {
@@ -89,10 +92,28 @@ const getQuotaStatus = async (req, res, next) => {
   }
 };
 
+const resetUsage = async (req, res, next) => {
+  try {
+    const client = adminService.resetClientUsage(req.user?.id || req.clientId || DEFAULT_CLIENT_ID);
+    if (!client) {
+      return res.status(404).json(errorResponse("Client not found."));
+    }
+    return res.json(
+      successResponse({
+        message: "Usage reset.",
+        quota: tokenService.checkQuotaStatus(req.clientId || DEFAULT_CLIENT_ID),
+      }),
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getDashboardSummary,
   getTodayUsage,
   getWeekUsage,
   getMonthUsage,
   getQuotaStatus,
+  resetUsage,
 };

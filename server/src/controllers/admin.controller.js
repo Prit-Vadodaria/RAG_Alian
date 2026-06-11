@@ -11,7 +11,12 @@ const getStats = async (req, res, next) => {
 
 const listClients = async (req, res, next) => {
   try {
-    return res.json(successResponse(adminService.listClients()));
+    const filter = String(req.query?.filter || "").trim().toLowerCase();
+    const clients =
+      filter === "unconfigured"
+        ? adminService.listUnconfiguredClients()
+        : adminService.listClients();
+    return res.json(successResponse(clients));
   } catch (error) {
     return next(error);
   }

@@ -36,20 +36,15 @@ class PromptSettingsSchema(BaseModel):
         check_text(cleaned, field_name=info.field_name)
         return cleaned
 
-    @field_validator("constraints")
-    @classmethod
-    def constraints_safe(cls, items: list[str]) -> list[str]:
-        cleaned: list[str] = []
-        for i, item in enumerate(items):
-            if not isinstance(item, str):
-                raise ValueError(f"constraints[{i}] must be a string.")
-            if len(item) > 300:
-                raise ValueError(
-                    f"constraints[{i}] exceeds 300-character limit ({len(item)} chars)."
-                )
-            check_text(item.strip(), field_name=f"constraints[{i}]")
-            cleaned.append(item.strip())
-        return cleaned
+
+class GenerationConfigSchema(BaseModel):
+    google_api_key: str = Field(..., min_length=1)
+    model: str = Field(..., min_length=1)
+    timeout_seconds: int = Field(default=60, ge=10, le=300)
+    temperature: float = Field(default=0.2, ge=0.0, le=2.0)
+    max_output_tokens: int = Field(default=512, ge=64)
+    max_retries: int = Field(default=5, ge=1)
+    retry_backoff: float = Field(default=2.0, ge=0.5)
 
 
 class AskRequestSchema(BaseModel):
@@ -75,3 +70,4 @@ class AskRequestSchema(BaseModel):
         description="Optional request origin for domain validation and tracing.",
     )
     prompt_settings: PromptSettingsSchema | None = None
+    generation_config: GenerationConfigSchema | None = None

@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const {
-  DEFAULT_DAILY_TOKEN_LIMIT,
   DEFAULT_COOLDOWN_MINUTES,
   REGISTRATION_ENABLED,
 } = require("../config/env");
@@ -17,10 +16,33 @@ const DEFAULT_CONFIG = Object.freeze({
   registration: {
     enabled: REGISTRATION_ENABLED,
     require_approval: false,
+    signup_default_token_limit: 50000,
+    signup_default_model: "gemini-2.5-flash",
+    max_contexts_per_client: 5,
+    max_chatbots_per_client: 5,
   },
   quotas: {
-    default_daily_token_limit: DEFAULT_DAILY_TOKEN_LIMIT,
     default_cooldown_minutes: DEFAULT_COOLDOWN_MINUTES,
+  },
+  embedding: {
+    model: "BAAI/bge-base-en-v1.5",
+    batch_size: 32,
+  },
+  reranking: {
+    enabled: true,
+    backend: "auto",
+    model: "cross-encoder/ms-marco-MiniLM-L-6-v2",
+  },
+  retrieval: {
+    vector_top_k: 10,
+    final_top_k: 5,
+    max_search_distance: 1.15,
+  },
+  ingestion: {
+    max_chunk_tokens: 120,
+    min_chunk_tokens: 30,
+    chunk_overlap_tokens: 25,
+    batch_size: 1,
   },
 });
 
@@ -51,6 +73,22 @@ function _readConfig() {
       quotas: {
         ...DEFAULT_CONFIG.quotas,
         ...(parsed.quotas || {}),
+      },
+      embedding: {
+        ...DEFAULT_CONFIG.embedding,
+        ...(parsed.embedding || {}),
+      },
+      reranking: {
+        ...DEFAULT_CONFIG.reranking,
+        ...(parsed.reranking || {}),
+      },
+      retrieval: {
+        ...DEFAULT_CONFIG.retrieval,
+        ...(parsed.retrieval || {}),
+      },
+      ingestion: {
+        ...DEFAULT_CONFIG.ingestion,
+        ...(parsed.ingestion || {}),
       },
     };
   } catch {
@@ -99,6 +137,22 @@ function updateConfig(changes = {}, updatedBy = "system") {
       ...current.quotas,
       ...(changes.quotas || {}),
     },
+    embedding: {
+      ...current.embedding,
+      ...(changes.embedding || {}),
+    },
+    reranking: {
+      ...current.reranking,
+      ...(changes.reranking || {}),
+    },
+    retrieval: {
+      ...current.retrieval,
+      ...(changes.retrieval || {}),
+    },
+    ingestion: {
+      ...current.ingestion,
+      ...(changes.ingestion || {}),
+    },
     updated_at: new Date().toISOString(),
     updated_by: updatedBy,
   };
@@ -112,6 +166,9 @@ function getPublicConfig() {
   const config = _readConfig();
   return {
     registration: config.registration,
+    quotas: config.quotas,
+    retrieval: config.retrieval,
+    ingestion: config.ingestion,
   };
 }
 

@@ -383,6 +383,20 @@ function getEffectiveQuota(clientId) {
   };
 }
 
+function applyClientDailyLimit(clientId, dailyTokenLimit) {
+  const normalizedClientId = _normalizeClientId(clientId);
+  const limit = Math.max(0, _toNumber(dailyTokenLimit, 0));
+  const current = getOrCreateClient(normalizedClientId);
+  return _persistClientRecord(normalizedClientId, {
+    ...current,
+    daily_limit: limit,
+    cooldown_duration_minutes: _toPositiveNumber(
+      current.cooldown_duration_minutes,
+      _readPlatformQuotaDefaults().default_cooldown_minutes,
+    ),
+  });
+}
+
 function _syncQuotaRecordFromUsage(clientId, tokensUsed, quotaClient = null) {
   const normalizedClientId = _normalizeClientId(clientId);
   const client = quotaClient || getOrCreateClient(normalizedClientId);
@@ -686,4 +700,5 @@ module.exports = {
   pruneClientFromDailyUsage,
   normalizeQuotaStorage,
   getEffectiveQuota,
+  applyClientDailyLimit,
 };

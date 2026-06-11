@@ -5,10 +5,10 @@ import ContextManager from "../components/context/ContextManager";
 
 function Contexts() {
   useEffect(() => {
-    if (window.location.hash === "#knowledge-contexts") {
-      document
-        .getElementById("knowledge-contexts")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const hash = window.location.hash;
+    if (hash === "#knowledge-contexts" || hash === "#add-context") {
+      const targetId = hash === "#add-context" ? "add-context" : "knowledge-contexts";
+      document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, []);
 

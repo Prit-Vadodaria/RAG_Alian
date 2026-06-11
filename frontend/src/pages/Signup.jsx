@@ -1,5 +1,5 @@
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AuthLayout from "../layouts/AuthLayout";
 import { useAuthStore } from "../store/authStore";
 
@@ -13,6 +13,68 @@ function Signup() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [googleApiKey, setGoogleApiKey] = useState("");
+  const [model, setModel] = useState("gemini-2.5-flash");
+  const [dailyTokenLimit, setDailyTokenLimit] = useState(50000);
+  const [timeoutSeconds, setTimeoutSeconds] = useState(60);
+  const [showKey, setShowKey] = useState(false);
+  const [modelOptions, setModelOptions] = useState([]);
+  const [modelLookupLoading, setModelLookupLoading] = useState(false);
+  const [modelLookupError, setModelLookupError] = useState("");
+  const hasApiKey = Boolean(googleApiKey.trim());
+  const visibleModelOptions = hasApiKey ? modelOptions : [];
+
+  useEffect(() => {
+    const key = googleApiKey.trim();
+
+    if (!key) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setModelLookupLoading(true);
+      setModelLookupError("");
+
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`,
+          { signal: controller.signal },
+        );
+
+        if (!response.ok) {
+          throw new Error("Unable to load Gemini model suggestions.");
+        }
+
+        const { models } = await response.json();
+        const nextModels = Array.from(
+          new Set(
+            Array.isArray(models)
+              ? models
+                  .map((entry) => String(entry?.name || "").replace(/^models\//, "").trim())
+                  .filter((value) => value.startsWith("gemini-"))
+              : [],
+          ),
+        ).sort();
+
+        setModelOptions(nextModels);
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          setModelOptions([]);
+          setModelLookupError(error.message || String(error));
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setModelLookupLoading(false);
+        }
+      }
+    }, 450);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [googleApiKey]);
 
   if (!isHydrating && isAuthenticated) {
     return <Navigate to="/workspace" replace />;
@@ -21,7 +83,12 @@ function Signup() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      const result = await signup(name.trim(), email.trim(), password);
+      const result = await signup(name.trim(), email.trim(), password, {
+        googleApiKey: googleApiKey.trim(),
+        model,
+        dailyTokenLimit: Number(dailyTokenLimit),
+        timeoutSeconds: Number(timeoutSeconds),
+      });
       navigate(result.user?.role === "admin" ? "/admin" : "/workspace", { replace: true });
     } catch {
       // The store already surfaces the error text.
@@ -55,6 +122,77 @@ function Signup() {
           <span className="text-sm text-[color:var(--on-dark-soft)]">Password</span>
           <input className="field w-full" value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
         </label>
+        <label className="block space-y-2">
+          <span className="text-sm text-[color:var(--on-dark-soft)]">Google Gemini API Key</span>
+          <div className="flex gap-2">
+            <input
+              className="field w-full"
+              value={googleApiKey}
+              onChange={(e) => setGoogleApiKey(e.target.value)}
+              type={showKey ? "text" : "password"}
+              autoComplete="new-password"
+              placeholder="Paste your Google API key"
+              required
+            />
+            <button
+              type="button"
+              className="button-secondary px-3"
+              onClick={() => setShowKey((value) => !value)}
+            >
+              {showKey ? "Hide" : "Show"}
+            </button>
+          </div>
+        </label>
+        <label className="block space-y-2">
+          <span className="text-sm text-[color:var(--on-dark-soft)]">Model</span>
+          <input
+            className="field w-full"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            list="gemini-model-options"
+            placeholder="Type a Gemini model ID"
+            required
+          />
+          <datalist id="gemini-model-options">
+            {visibleModelOptions.map((entry) => (
+              <option key={entry} value={entry} />
+            ))}
+          </datalist>
+          <p className="text-xs text-[color:var(--on-dark-soft)]">
+            Start typing a model name, then pick from the suggestions loaded from Google or enter a custom Gemini model ID.
+          </p>
+          {hasApiKey && modelLookupLoading ? (
+            <p className="text-xs text-[color:var(--on-dark-soft)]">Loading model suggestions...</p>
+          ) : null}
+          {hasApiKey && modelLookupError ? (
+            <p className="text-xs text-[color:var(--error)]">{modelLookupError}</p>
+          ) : null}
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block space-y-2">
+            <span className="text-sm text-[color:var(--on-dark-soft)]">Daily Token Limit</span>
+            <input
+              className="field w-full"
+              type="number"
+              min="1000"
+              value={dailyTokenLimit}
+              onChange={(e) => setDailyTokenLimit(e.target.value)}
+              required
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="text-sm text-[color:var(--on-dark-soft)]">Timeout Seconds</span>
+            <input
+              className="field w-full"
+              type="number"
+              min="10"
+              max="300"
+              value={timeoutSeconds}
+              onChange={(e) => setTimeoutSeconds(e.target.value)}
+              required
+            />
+          </label>
+        </div>
         {error ? <p className="text-sm text-[color:var(--error)]">{error}</p> : null}
         <button type="submit" className="button-primary w-full justify-center" disabled={isLoading}>
           {isLoading ? "Creating account..." : "Create account"}

@@ -163,7 +163,102 @@ export default function ContextManager() {
 
   return (
     <div className="space-y-5">
-      <form onSubmit={handleAdd} className="surface-page p-5">
+      <div className="surface-page p-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-[color:var(--ink)]">
+            Registered contexts
+          </p>
+          {loading && <Loader2 className="h-4 w-4 animate-spin text-[color:var(--muted)]" />}
+        </div>
+        <p className="mt-1 text-xs text-[color:var(--muted)]">Refreshes every 5 seconds</p>
+
+        <div className="mt-4 space-y-3">
+          {contexts.length === 0 && (
+            <p className="text-sm text-[color:var(--body)]">No contexts registered yet.</p>
+          )}
+          {contexts.map((context) => (
+            <div
+              key={context.id}
+              className="surface-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate font-medium text-[color:var(--ink)]">
+                    {context.name}
+                  </p>
+                  <ContextStatusBadge status={context.status} />
+                  {context.isDefault && (
+                    <span className="text-xs text-[color:var(--muted)]">default</span>
+                  )}
+                </div>
+                <p className="mt-1 truncate text-xs text-[color:var(--muted)]">
+                  {context.id}
+                </p>
+                {context.seed_url && (
+                  <p className="mt-1 truncate text-xs text-[color:var(--primary-strong)]">
+                    {context.seed_url}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handlePause(context)}
+                  disabled={
+                    updatingId === context.id ||
+                    !isPauseable(context.status) ||
+                    isLockedReady(context.status)
+                  }
+                  className="button-danger px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {updatingId === context.id && ["discovering", "processing_batch"].includes(String(context.status || "").toLowerCase()) ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Pause className="h-4 w-4" />
+                  )}
+                  Pause
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleResume(context)}
+                  disabled={
+                    updatingId === context.id ||
+                    !isResumable(context.status) ||
+                    isLockedReady(context.status)
+                  }
+                  className="button-primary px-3 py-2 text-xs bg-[color:var(--success)] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {updatingId === context.id && String(context.status || "").toLowerCase() === "paused" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  Resume
+                </button>
+                {context.isDeletable && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(context)}
+                    disabled={
+                      deletingId === context.id || context.status === "deleting"
+                    }
+                    className="button-danger px-3 py-2 text-xs"
+                  >
+                    {deletingId === context.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    Delete
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <form id="add-context" onSubmit={handleAdd} className="surface-page p-5">
         <div className="flex items-center gap-3 text-[color:var(--primary)]">
           <Globe className="h-5 w-5" />
           <p className="text-sm font-semibold text-[color:var(--ink)]">
@@ -266,101 +361,6 @@ export default function ContextManager() {
           </p>
         )}
       </form>
-
-      <div className="surface-page p-5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-[color:var(--ink)]">
-            Registered contexts
-          </p>
-          {loading && <Loader2 className="h-4 w-4 animate-spin text-[color:var(--muted)]" />}
-        </div>
-        <p className="mt-1 text-xs text-[color:var(--muted)]">Refreshes every 5 seconds</p>
-
-        <div className="mt-4 space-y-3">
-          {contexts.length === 0 && (
-            <p className="text-sm text-[color:var(--body)]">No contexts registered yet.</p>
-          )}
-          {contexts.map((context) => (
-            <div
-              key={context.id}
-              className="surface-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="truncate font-medium text-[color:var(--ink)]">
-                    {context.name}
-                  </p>
-                  <ContextStatusBadge status={context.status} />
-                  {context.isDefault && (
-                    <span className="text-xs text-[color:var(--muted)]">default</span>
-                  )}
-                </div>
-                <p className="mt-1 truncate text-xs text-[color:var(--muted)]">
-                  {context.id}
-                </p>
-                {context.seed_url && (
-                  <p className="mt-1 truncate text-xs text-[color:var(--primary-strong)]">
-                    {context.seed_url}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => handlePause(context)}
-                  disabled={
-                    updatingId === context.id ||
-                    !isPauseable(context.status) ||
-                    isLockedReady(context.status)
-                  }
-                  className="button-danger px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {updatingId === context.id && ["discovering", "processing_batch"].includes(String(context.status || "").toLowerCase()) ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Pause className="h-4 w-4" />
-                  )}
-                  Pause
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleResume(context)}
-                  disabled={
-                    updatingId === context.id ||
-                    !isResumable(context.status) ||
-                    isLockedReady(context.status)
-                  }
-                  className="button-primary px-3 py-2 text-xs bg-[color:var(--success)] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {updatingId === context.id && String(context.status || "").toLowerCase() === "paused" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                  Resume
-                </button>
-                {context.isDeletable && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(context)}
-                    disabled={
-                      deletingId === context.id || context.status === "deleting"
-                    }
-                    className="button-danger px-3 py-2 text-xs"
-                  >
-                    {deletingId === context.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
       <ConfirmDialog
         open={Boolean(confirmContext)}
         title="Confirm delete"

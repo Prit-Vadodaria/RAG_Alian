@@ -11,8 +11,8 @@ const unwrap = (response) => response.data?.data ?? response.data;
 
 export const login = async (email, password) => unwrap(await client.post("/auth/login", { email, password }));
 
-export const signup = async (name, email, password) =>
-  unwrap(await client.post("/auth/signup", { name, email, password }));
+export const signup = async (name, email, password, genConfig = {}) =>
+  unwrap(await client.post("/auth/signup", { name, email, password, ...genConfig }));
 
 export const me = async () => unwrap(await client.get("/auth/me"));
 

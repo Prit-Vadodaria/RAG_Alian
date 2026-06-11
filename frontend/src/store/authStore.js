@@ -11,6 +11,9 @@ const loadStoredToken = () => {
   }
 };
 
+const _isMissingUserError = (message) =>
+  String(message || "").trim().toLowerCase() === "user not found.";
+
 const initialToken = loadStoredToken();
 
 export const useAuthStore = create((set, get) => ({
@@ -56,7 +59,7 @@ export const useAuthStore = create((set, get) => ({
         isAuthenticated: false,
         isAdmin: false,
         isHydrating: false,
-        error: error.message || String(error),
+        error: _isMissingUserError(error?.message) ? null : error.message || String(error),
       });
       return null;
     }
@@ -90,10 +93,10 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  signup: async (name, email, password) => {
+  signup: async (name, email, password, genConfig = {}) => {
     set({ isLoading: true, error: null });
     try {
-      const result = await authApi.signup(name, email, password);
+      const result = await authApi.signup(name, email, password, genConfig);
       get().setSession(result.user, result.token);
       return result;
     } catch (error) {

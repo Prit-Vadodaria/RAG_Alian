@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Chatbots from "./pages/Chatbots";
 import System from "./pages/System";
 import Settings from "./pages/Settings";
+import AiConfig from "./pages/AiConfig";
 import Contexts from "./pages/Contexts";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminClients from "./pages/admin/AdminClients";
@@ -49,6 +50,7 @@ function App() {
             <Route path="/contexts" element={<Contexts />} />
             <Route path="/system" element={<System />} />
             <Route path="/prompt-settings" element={<Settings />} />
+            <Route path="/ai-config" element={<AiConfig />} />
           </Route>
         </Route>
 

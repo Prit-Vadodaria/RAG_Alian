@@ -1,12 +1,37 @@
 const apiClient = require("./api.service");
+const clientConfigService = require("./client-config.service");
 const tokenService = require("./token.service");
+const { BYOK_ENABLED } = require("../config/env");
 
 const askRag = async (query, contextId = "", options = {}) => {
   try {
+    const clientId = String(options.clientId || "").trim();
+    let generationConfig = null;
+
+    if (BYOK_ENABLED) {
+      const genConfig = clientId ? clientConfigService.getClientConfig(clientId) : null;
+      if (!genConfig || !genConfig.googleApiKey) {
+        const error = new Error("Generation configuration is required. Please configure your Google API key in settings.");
+        error.status = 403;
+        throw error;
+      }
+
+      generationConfig = {
+        google_api_key: genConfig.googleApiKey,
+        model: genConfig.model,
+        timeout_seconds: genConfig.timeoutSeconds,
+        temperature: genConfig.temperature,
+        max_output_tokens: genConfig.maxOutputTokens,
+        max_retries: genConfig.maxRetries,
+        retry_backoff: genConfig.retryBackoff,
+      };
+    }
+
     const response = await apiClient.post("/ask", {
       query,
       context_id: contextId,
       ...options,
+      ...(generationConfig ? { generation_config: generationConfig } : {}),
     });
 
     if (!response || !response.data) {
@@ -16,7 +41,6 @@ const askRag = async (query, contextId = "", options = {}) => {
     }
 
     const metrics = response.data?.metrics || {};
-    const clientId = String(options.clientId || "").trim();
     if (!clientId) {
       const error = new Error("Client scope is required to record token usage.");
       error.status = 400;

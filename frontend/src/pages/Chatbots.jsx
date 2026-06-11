@@ -49,9 +49,7 @@ function Chatbots() {
   const [welcomeMessage, setWelcomeMessage] = useState("");
   const [allowedDomains, setAllowedDomains] = useState("");
   const [primaryContextId, setPrimaryContextId] = useState("");
-  const [accentColor, setAccentColor] = useState("#c9775c");
-  const [panelColor, setPanelColor] = useState("#171613");
-  const [textColor, setTextColor] = useState("#f9f5ee");
+  const [primaryColor, setPrimaryColor] = useState("#0099ff");
   const [isChatbotsLoading, setIsChatbotsLoading] = useState(false);
   const [isChatbotSaving, setIsChatbotSaving] = useState(false);
   const [chatbotError, setChatbotError] = useState("");
@@ -115,9 +113,7 @@ function Chatbots() {
         primary_context_id: primaryContextId,
         context_ids: [primaryContextId],
         theme_config: {
-          accent: accentColor,
-          panel: panelColor,
-          text: textColor,
+          primary: primaryColor,
         },
         prompt_config: {
           role: settings.role || "",
@@ -202,91 +198,6 @@ function Chatbots() {
         </div>
       </div>
 
-      <SectionCard title="Create chatbot">
-        <div className="space-y-5">
-          <p className="text-sm text-[color:var(--body)]">
-            Create a multi-tenant public chatbot that is served only through the
-            orchestrator.
-          </p>
-          <div className="grid gap-3 md:grid-cols-2">
-            <input
-              value={chatbotName}
-              onChange={(event) => setChatbotName(event.target.value)}
-              placeholder="Chatbot name"
-              className="field"
-              disabled={isChatbotSaving}
-            />
-            <select
-              value={primaryContextId}
-              onChange={(event) => setPrimaryContextId(event.target.value)}
-              className="field"
-              disabled={isChatbotSaving}
-            >
-              {availableContexts.map((context) => (
-                <option key={context.id} value={context.id}>
-                  {context.name || context.id}
-                </option>
-              ))}
-            </select>
-            <textarea
-              value={welcomeMessage}
-              onChange={(event) => setWelcomeMessage(event.target.value)}
-              placeholder="Welcome message"
-              rows={3}
-              className="field md:col-span-2"
-              disabled={isChatbotSaving}
-            />
-            <textarea
-              value={allowedDomains}
-              onChange={(event) => setAllowedDomains(event.target.value)}
-              placeholder="Allowed domains, one per line (leave blank to allow all)"
-              rows={3}
-              className="field md:col-span-2"
-              disabled={isChatbotSaving}
-            />
-            <input
-              value={accentColor}
-              onChange={(event) => setAccentColor(event.target.value)}
-              placeholder="#c9775c"
-              className="field"
-              disabled={isChatbotSaving}
-            />
-            <input
-              value={panelColor}
-              onChange={(event) => setPanelColor(event.target.value)}
-              placeholder="#171613"
-              className="field"
-              disabled={isChatbotSaving}
-            />
-            <input
-              value={textColor}
-              onChange={(event) => setTextColor(event.target.value)}
-              placeholder="#f9f5ee"
-              className="field md:col-span-2"
-              disabled={isChatbotSaving}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleCreateChatbot}
-              disabled={isChatbotSaving}
-              className="button-primary"
-            >
-              {isChatbotSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              Create chatbot
-            </button>
-            {chatbotError && (
-              <p className="text-sm text-[color:var(--error)]">{chatbotError}</p>
-            )}
-          </div>
-        </div>
-      </SectionCard>
-
       <SectionCard title="Deployed chatbots">
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
@@ -360,6 +271,83 @@ function Chatbots() {
               </div>
             </div>
           ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Create chatbot">
+        <div className="space-y-5">
+          <p className="text-sm text-[color:var(--body)]">
+            Create a multi-tenant public chatbot that is served only through the
+            orchestrator.
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <input
+              value={chatbotName}
+              onChange={(event) => setChatbotName(event.target.value)}
+              placeholder="Chatbot name"
+              className="field"
+              disabled={isChatbotSaving}
+            />
+            <select
+              value={primaryContextId}
+              onChange={(event) => setPrimaryContextId(event.target.value)}
+              className="field"
+              disabled={isChatbotSaving}
+            >
+              {availableContexts.map((context) => (
+                <option key={context.id} value={context.id}>
+                  {context.name || context.id}
+                </option>
+              ))}
+            </select>
+            <textarea
+              value={welcomeMessage}
+              onChange={(event) => setWelcomeMessage(event.target.value)}
+              placeholder="Welcome message"
+              rows={3}
+              className="field md:col-span-2"
+              disabled={isChatbotSaving}
+            />
+            <textarea
+              value={allowedDomains}
+              onChange={(event) => setAllowedDomains(event.target.value)}
+              placeholder="Allowed domains, one per line (leave blank to allow all)"
+              rows={3}
+              className="field md:col-span-2"
+              disabled={isChatbotSaving}
+            />
+            <label className="block space-y-2 md:col-span-2">
+              <span className="text-sm text-[color:var(--body)]">Primary color</span>
+              <input
+                value={primaryColor}
+                onChange={(event) => setPrimaryColor(event.target.value)}
+                placeholder="#0099ff"
+                className="field w-full"
+                disabled={isChatbotSaving}
+              />
+              <p className="text-xs text-[color:var(--muted)]">
+                This single color is used only on important widget moments like the launcher, send button, focus state, and selected items.
+              </p>
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleCreateChatbot}
+              disabled={isChatbotSaving}
+              className="button-primary"
+            >
+              {isChatbotSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              Create chatbot
+            </button>
+            {chatbotError && (
+              <p className="text-sm text-[color:var(--error)]">{chatbotError}</p>
+            )}
+          </div>
         </div>
       </SectionCard>
 

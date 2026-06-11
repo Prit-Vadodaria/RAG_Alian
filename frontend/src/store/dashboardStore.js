@@ -25,6 +25,18 @@ export const useDashboardStore = create((set) => ({
       error: null,
       loading: false,
     }),
+
+  resetUsage: async () => {
+    set({ loading: true, error: null });
+    try {
+      const result = await dashboardApi.resetUsage();
+      await useDashboardStore.getState().fetchSummary();
+      return result;
+    } catch (error) {
+      set({ loading: false, error: error.message || String(error) });
+      throw error;
+    }
+  },
 }));
 
 if (typeof window !== "undefined") {
@@ -38,4 +50,5 @@ export const dashboardSelectors = {
   loading: (state) => state.loading,
   error: (state) => state.error,
   fetchSummary: (state) => state.fetchSummary,
+  resetUsage: (state) => state.resetUsage,
 };

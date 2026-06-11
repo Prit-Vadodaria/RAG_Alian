@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { DEFAULT_CLIENT_ID } = require("../config/env");
+const configService = require("./config.service");
 
 const DATA_DIR = path.resolve(__dirname, "../../data");
 const CHATBOTS_PATH = path.join(DATA_DIR, "chatbots.json");
@@ -222,13 +223,26 @@ function createChatbot(input, clientId = null) {
   if (!primaryContextId) {
     throw new Error("A website context is required to create a chatbot.");
   }
+  const normalizedClientId = _normalizeClientId(clientId);
+  if (normalizedClientId) {
+    const config = configService.getConfig();
+    const maxChatbots = Math.max(0, Number(config?.registration?.max_chatbots_per_client ?? 0) || 0);
+    if (maxChatbots > 0) {
+      const currentCount = listChatbots(normalizedClientId).length;
+      if (currentCount >= maxChatbots) {
+        const error = new Error(`Maximum chatbots per user reached (${maxChatbots}).`);
+        error.status = 403;
+        throw error;
+      }
+    }
+  }
 
   const chatbot = _normalizeChatbotRecord({
     id: _createId(),
     name,
     public_token: _createId("pub"),
     namespace: "",
-    client_id: _normalizeClientId(clientId),
+    client_id: normalizedClientId,
     is_active: input?.is_active ?? true,
     welcome_message: input?.welcome_message || "",
     theme_config: input?.theme_config || {},

@@ -390,6 +390,7 @@ def _crawl_urls_serial(
                     last_request_at=last_request_at,
                     crawl_delay_seconds=crawl_delay_seconds,
                     user_agent=user_agent,
+                    pause_check=pause_check,
                     logger=logger,
                 )
             )
@@ -466,6 +467,7 @@ def _crawl_url_batch(
                 last_request_at=last_request_at,
                 crawl_delay_seconds=crawl_delay_seconds,
                 user_agent=user_agent,
+                pause_check=pause_check,
                 logger=logger,
             )
             results.append((index, result))

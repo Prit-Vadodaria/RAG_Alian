@@ -20,6 +20,8 @@ function Settings() {
   const [constraintsText, setConstraintsText] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [baselineRole, setBaselineRole] = useState("");
+  const [baselineConstraintsText, setBaselineConstraintsText] = useState("");
 
   useEffect(() => {
     loadSettings();
@@ -27,12 +29,9 @@ function Settings() {
 
   const isDirty = useMemo(() => {
     const currentRole = role.trim();
-    const baseRole = (settings.role || "").trim();
-
     const currentConstraints = normalizeConstraints(constraintsText);
-    const baseConstraints = (settings.constraints || []).map((line) =>
-      String(line).trim(),
-    );
+    const baseRole = baselineRole.trim();
+    const baseConstraints = normalizeConstraints(baselineConstraintsText);
 
     if (currentRole !== baseRole) return true;
     if (currentConstraints.length !== baseConstraints.length) return true;
@@ -41,7 +40,23 @@ function Settings() {
       if (currentConstraints[i] !== baseConstraints[i]) return true;
     }
     return false;
-  }, [role, constraintsText, settings]);
+  }, [role, constraintsText, baselineRole, baselineConstraintsText]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (!isEditing || !isDirty || isLoading) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty, isEditing, isLoading]);
+
+  useEffect(() => {
+    setBaselineRole(settings.role || "");
+    setBaselineConstraintsText((settings.constraints || []).join("\n"));
+  }, [settings]);
 
   const handleSave = async () => {
     if (!isEditing || !isDirty) return;
@@ -50,6 +65,8 @@ function Settings() {
     setSaveError("");
     try {
       await saveSettings({ role: role.trim(), constraints });
+      setBaselineRole(role.trim());
+      setBaselineConstraintsText(constraints.join("\n"));
       setIsEditing(false);
       showToast("Prompt settings saved.", "success");
     } catch (error) {
@@ -63,6 +80,8 @@ function Settings() {
     const next = await resetSettings();
     setRole(next.role || "");
     setConstraintsText((next.constraints || []).join("\n"));
+    setBaselineRole(next.role || "");
+    setBaselineConstraintsText((next.constraints || []).join("\n"));
     setIsEditing(false);
     showToast("Prompt settings reset to defaults.", "success");
   };
@@ -118,27 +137,27 @@ function Settings() {
             rows={6}
             disabled={isLoading || !isEditing}
           />
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap justify-end gap-3 border-t border-[rgba(255,255,255,0.08)] bg-transparent px-0 pt-4">
             <button
               onClick={handleEdit}
               disabled={isLoading || isEditing}
-              className="button-secondary"
+              className="button-secondary !border-[rgba(255,255,255,0.14)] !bg-transparent"
             >
               Edit
             </button>
             <button
-              onClick={handleSave}
-              disabled={isLoading || !isEditing || !isDirty}
-              className="button-primary"
-            >
-              Save
-            </button>
-            <button
               onClick={handleReset}
               disabled={isLoading}
-              className="button-secondary"
+              className="button-secondary !border-[rgba(255,255,255,0.14)] !bg-transparent"
             >
               Reset Defaults
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isLoading || !isEditing || !isDirty}
+              className="button-primary !bg-[rgba(255,255,255,0.06)] !text-[color:var(--on-dark)] !shadow-none"
+            >
+              Save
             </button>
           </div>
           {saveError && (
