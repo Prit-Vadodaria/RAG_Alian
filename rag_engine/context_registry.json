@@ -2,67 +2,58 @@
   "version": 1,
   "contexts": [
     {
-      "id": "aliansoftware-com_9882f140",
-      "name": "aliansoftware.com",
-      "seed_url": "https://aliansoftware.com/en",
-      "status": "ready",
-      "path": "websites/aliansoftware-com_9882f140",
-      "is_default": false,
-      "is_deletable": true,
-      "chunking": {
-        "maxChunkTokens": 350,
-        "minChunkTokens": 80,
-        "chunkOverlapTokens": 60
-      },
-      "chunks_created": 751
-    },
-    {
-      "id": "hansalpatel-tech_7ac89f38",
+      "id": "hansalpatel-tech_daa7e395",
       "name": "hansalpatel.tech",
       "seed_url": "https://hansalpatel.tech/",
+      "client_id": "client_99808589",
       "status": "ready",
-      "path": "websites/hansalpatel-tech_7ac89f38",
+      "path": "websites/hansalpatel-tech_daa7e395",
       "is_default": false,
       "is_deletable": true,
       "chunking": {
         "maxChunkTokens": 100,
-        "minChunkTokens": 20,
-        "chunkOverlapTokens": 30
+        "minChunkTokens": 30,
+        "chunkOverlapTokens": 25
       },
       "total_urls": 1,
       "pending_urls": 0,
       "processed_urls": 1,
       "indexed_urls": 1,
       "failed_urls": 0,
-      "current_batch": 1,
-      "total_batches": 1,
-      "last_completed_batch": 1,
+      "current_batch": 0,
+      "total_batches": 0,
+      "last_completed_batch": 0,
       "stop_reason": "",
-      "ingestion_pid": 16688
+      "ingestion_pid": 12936,
+      "current_url": "",
+      "embedding_buffer_size": 0
     },
     {
-      "id": "www-minimalist-ae_dc92ddd3",
-      "name": "www.minimalist.ae",
-      "seed_url": "https://www.minimalist.ae/",
+      "id": "aliansoftware-com_3cb2d8ec",
+      "name": "aliansoftware.com",
+      "seed_url": "https://aliansoftware.com/en",
+      "client_id": "client_7406bc4d",
       "status": "ready",
-      "path": "websites/www-minimalist-ae_dc92ddd3",
+      "path": "websites/aliansoftware-com_3cb2d8ec",
       "is_default": false,
       "is_deletable": true,
       "chunking": {
-        "maxChunkTokens": 600,
-        "minChunkTokens": 250,
-        "chunkOverlapTokens": 120
+        "maxChunkTokens": 200,
+        "minChunkTokens": 30,
+        "chunkOverlapTokens": 50
       },
-      "total_urls": 250,
+      "total_urls": 339,
       "pending_urls": 0,
-      "processed_urls": 250,
-      "indexed_urls": 249,
-      "failed_urls": 1,
-      "current_batch": 3,
-      "total_batches": 3,
-      "last_completed_batch": 3,
-      "stop_reason": "max_pages_reached",
-      "ingestion_pid": 14560
+      "processed_urls": 339,
+      "indexed_urls": 328,
+      "failed_urls": 11,
+      "current_batch": 0,
+      "total_batches": 0,
+      "last_completed_batch": 0,
+      "stop_reason": "",
+      "ingestion_pid": 19108,
+      "current_url": "",
+      "embedding_buffer_size": 0
     }
   ]
 }

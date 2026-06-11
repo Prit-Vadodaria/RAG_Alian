@@ -16,8 +16,12 @@ const askRag = async (query, contextId = "", options = {}) => {
     }
 
     const metrics = response.data?.metrics || {};
-    const clientId =
-      String(options.clientId || "").trim() || process.env.DEFAULT_CLIENT_ID || "client_owner";
+    const clientId = String(options.clientId || "").trim();
+    if (!clientId) {
+      const error = new Error("Client scope is required to record token usage.");
+      error.status = 400;
+      throw error;
+    }
 
     setImmediate(() => {
       try {

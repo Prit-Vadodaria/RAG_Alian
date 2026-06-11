@@ -60,6 +60,10 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _is_pause_requested(site_path: Path) -> bool:
+    return is_pause_requested(site_path)
+
+
 def _count_by_status(entries: list[RegistryEntry]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for entry in entries:
@@ -167,6 +171,7 @@ def _load_or_discover_registry(
     seed_url: str,
     site_path: Path,
     logs_dir: Path,
+    pause_check=None,
 ) -> tuple[list[RegistryEntry], IngestionProgress, str | None]:
     existing = load_registry(site_path)
     entries = load_registry_entries(site_path)
@@ -189,7 +194,12 @@ def _load_or_discover_registry(
         )
         return entries, progress, str(existing.get("stop_reason") or progress.stop_reason or "")
 
-    discovery: DiscoveryResult = discover_internal_urls(seed_url, logs_dir=logs_dir, language="en")
+    discovery: DiscoveryResult = discover_internal_urls(
+        seed_url,
+        logs_dir=logs_dir,
+        language="en",
+        pause_check=pause_check,
+    )
     urls = discovery.urls
     entries = [RegistryEntry(url=url, status="pending", depth=0) for url in urls]
     progress = IngestionProgress(
@@ -256,16 +266,27 @@ def ingest_website(seed_url: str, website_id: str, output_dir: Path) -> dict[str
             seed_url=seed_url,
             site_path=site_path,
             logs_dir=logs_dir,
+            pause_check=lambda: _is_pause_requested(site_path),
         )
         if not entries:
-            progress.status = "failed"
+            progress.status = "paused" if _is_pause_requested(site_path) else "failed"
             _persist_checkpoint(
                 website_id=website_id, site_path=site_path,
                 entries=entries, progress=progress, stop_reason=stop_reason,
             )
+            if progress.status == "paused":
+                return _final_response(website_id, progress, entries, "paused", logger)
             return {"id": website_id, "status": "failed", "summary": {"reason": "No discoverable URLs"}}
 
-        progress.status = "processing"
+        if _is_pause_requested(site_path):
+            progress.status = "paused"
+            _persist_checkpoint(
+                website_id=website_id, site_path=site_path,
+                entries=entries, progress=progress, stop_reason="paused",
+            )
+            return _final_response(website_id, progress, entries, "paused", logger)
+
+        progress.status = "processing_batch"
         _persist_checkpoint(
             website_id=website_id, site_path=site_path,
             entries=entries, progress=progress, stop_reason=stop_reason,
@@ -327,6 +348,7 @@ def ingest_website(seed_url: str, website_id: str, output_dir: Path) -> dict[str
                 audit_file=crawl_audit_file,
                 manifest_file=None,
                 logs_dir=logs_dir,
+                pause_check=lambda: _is_pause_requested(site_path),
             )
 
             crawl_result = crawl_results[0] if crawl_results else None
@@ -361,6 +383,7 @@ def ingest_website(seed_url: str, website_id: str, output_dir: Path) -> dict[str
                 seen_hashes=seen_hashes,
                 seen_fingerprints=seen_fingerprints,
                 seen_chunk_hashes=seen_chunk_hashes,
+                pause_check=lambda: _is_pause_requested(site_path),
             )
 
             update_registry_entry(entries, url, status="processed", processed_at=_utc_now())
@@ -401,6 +424,17 @@ def ingest_website(seed_url: str, website_id: str, output_dir: Path) -> dict[str
             )
 
         # Final status
+        if _is_pause_requested(site_path):
+            progress.status = "paused"
+            _persist_checkpoint(
+                website_id=website_id, site_path=site_path,
+                entries=entries, progress=progress,
+                embedding_buffer_size=0, current_url="",
+                stop_reason="paused",
+            )
+            logger.info("Ingest paused website_id=%s", website_id)
+            return _final_response(website_id, progress, entries, "paused", logger)
+
         counts = _count_by_status(entries)
         if counts.get("indexed", 0) > 0 and counts.get("pending", 0) == 0:
             progress.status = "ready"

@@ -27,6 +27,7 @@ const DEFAULT_QUOTA_STATE = Object.freeze({
   version: 1,
   clients: {},
 });
+const PLATFORM_CONFIG_PATH = path.join(DATA_DIR, "platform_config.json");
 
 const CACHE_TTL_MS = 10_000;
 const _quotaCache = new Map();
@@ -94,15 +95,52 @@ function _normalizeStatus(status) {
   return "active";
 }
 
+function _readPlatformQuotaDefaults() {
+  const fallback = {
+    default_daily_token_limit: DEFAULT_DAILY_TOKEN_LIMIT,
+    default_cooldown_minutes: DEFAULT_COOLDOWN_MINUTES,
+  };
+  if (!fs.existsSync(PLATFORM_CONFIG_PATH)) {
+    return fallback;
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(PLATFORM_CONFIG_PATH, "utf8"));
+    return {
+      default_daily_token_limit: _toPositiveNumber(
+        parsed?.quotas?.default_daily_token_limit,
+        DEFAULT_DAILY_TOKEN_LIMIT,
+      ),
+      default_cooldown_minutes: _toPositiveNumber(
+        parsed?.quotas?.default_cooldown_minutes,
+        DEFAULT_COOLDOWN_MINUTES,
+      ),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function _stripDefaultQuotaValues(record, defaults = _readPlatformQuotaDefaults()) {
+  const next = { ...record };
+  if (Number(next.daily_limit) === Number(defaults.default_daily_token_limit)) {
+    delete next.daily_limit;
+  }
+  if (Number(next.cooldown_duration_minutes) === Number(defaults.default_cooldown_minutes)) {
+    delete next.cooldown_duration_minutes;
+  }
+  return next;
+}
+
 function _normalizeQuotaClient(clientId, raw = {}) {
   const now = new Date().toISOString();
+  const defaults = _readPlatformQuotaDefaults();
   return {
     client_id: _normalizeClientId(raw.client_id || clientId),
     plan_name: String(raw.plan_name || "default").trim() || "default",
-    daily_limit: _toPositiveNumber(raw.daily_limit, DEFAULT_DAILY_TOKEN_LIMIT),
+    daily_limit: _toPositiveNumber(raw.daily_limit, defaults.default_daily_token_limit),
     cooldown_duration_minutes: _toPositiveNumber(
       raw.cooldown_duration_minutes,
-      DEFAULT_COOLDOWN_MINUTES,
+      defaults.default_cooldown_minutes,
     ),
     status: _normalizeStatus(raw.status),
     cooldown_until: raw.cooldown_until || null,
@@ -135,6 +173,62 @@ function _normalizeDayRecord(date, raw = {}, clientId = DEFAULT_CLIENT_ID) {
   };
 }
 
+function _normalizeDailyUsageDays(days = {}) {
+  const normalizedDays = {};
+
+  for (const [date, entry] of Object.entries(days)) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(entry, "client_id")) {
+      const record = _normalizeDayRecord(date, entry, entry.client_id);
+      normalizedDays[date] = {
+        [record.client_id]: record,
+      };
+      continue;
+    }
+
+    const perClient = {};
+    for (const [clientId, record] of Object.entries(entry)) {
+      if (!record || typeof record !== "object") continue;
+      const normalized = _normalizeDayRecord(date, record, clientId);
+      perClient[normalized.client_id] = normalized;
+    }
+    normalizedDays[date] = perClient;
+  }
+
+  return normalizedDays;
+}
+
+function pruneClientFromDailyUsage(dailyUsage, clientId) {
+  const clientScope = _normalizeClientId(clientId);
+  const next = {
+    version: Number(dailyUsage?.version || 1),
+    days: {},
+  };
+
+  for (const [date, entry] of Object.entries(dailyUsage?.days || {})) {
+    if (!entry || typeof entry !== "object") continue;
+
+    if (Object.prototype.hasOwnProperty.call(entry, "client_id")) {
+      if (String(entry.client_id || "").trim() !== clientScope) {
+        next.days[date] = entry;
+      }
+      continue;
+    }
+
+    const remaining = Object.fromEntries(
+      Object.entries(entry).filter(([, record]) => String(record?.client_id || "").trim() !== clientScope),
+    );
+    if (Object.keys(remaining).length > 0) {
+      next.days[date] = remaining;
+    }
+  }
+
+  return next;
+}
+
 function _readTokenEventsState() {
   const state = _readJson(TOKEN_EVENTS_PATH, DEFAULT_TOKEN_EVENTS_STATE);
   return {
@@ -150,10 +244,7 @@ function _writeTokenEventsState(state) {
 function _readDailyUsageState() {
   const state = _readJson(DAILY_USAGE_PATH, DEFAULT_DAILY_USAGE_STATE);
   const days = state.days && typeof state.days === "object" ? state.days : {};
-  const normalizedDays = {};
-  for (const [date, entry] of Object.entries(days)) {
-    normalizedDays[date] = _normalizeDayRecord(date, entry);
-  }
+  const normalizedDays = _normalizeDailyUsageDays(days);
   return {
     version: _toNumber(state.version, 1),
     days: normalizedDays,
@@ -184,6 +275,14 @@ function _writeQuotaState(state) {
 function _invalidateQuotaCache(clientId) {
   if (!clientId) return;
   _quotaCache.delete(clientId);
+}
+
+function clearQuotaCache(clientId) {
+  if (clientId === undefined || clientId === null) {
+    _quotaCache.clear();
+    return;
+  }
+  _invalidateQuotaCache(_normalizeClientId(clientId));
 }
 
 function _getCachedQuota(clientId) {
@@ -230,11 +329,6 @@ function getOrCreateClient(clientId) {
   const existing = state.clients[normalizedClientId];
   const normalized = _normalizeQuotaClient(normalizedClientId, existing || {});
 
-  if (normalizedClientId === DEFAULT_CLIENT_ID) {
-    normalized.daily_limit = DEFAULT_DAILY_TOKEN_LIMIT;
-    normalized.cooldown_duration_minutes = DEFAULT_COOLDOWN_MINUTES;
-  }
-
   if (!existing || JSON.stringify(existing) !== JSON.stringify(normalized)) {
     state.clients[normalizedClientId] = normalized;
     _writeQuotaState(state);
@@ -252,14 +346,41 @@ function _persistClientRecord(clientId, changes) {
     ...changes,
     updated_at: new Date().toISOString(),
   });
-  if (normalizedClientId === DEFAULT_CLIENT_ID) {
-    next.daily_limit = DEFAULT_DAILY_TOKEN_LIMIT;
-    next.cooldown_duration_minutes = DEFAULT_COOLDOWN_MINUTES;
-  }
   state.clients[normalizedClientId] = next;
   _writeQuotaState(state);
   _invalidateQuotaCache(normalizedClientId);
   return next;
+}
+
+function normalizeQuotaStorage() {
+  const defaults = _readPlatformQuotaDefaults();
+  const state = _readQuotaState();
+  let changed = false;
+  for (const [clientId, record] of Object.entries(state.clients || {})) {
+    const next = _stripDefaultQuotaValues(record, defaults);
+    if (JSON.stringify(next) !== JSON.stringify(record)) {
+      state.clients[clientId] = next;
+      changed = true;
+    }
+  }
+  if (changed) {
+    _writeQuotaState(state);
+    clearQuotaCache();
+  }
+  return changed;
+}
+
+function getEffectiveQuota(clientId) {
+  const client = getOrCreateClient(clientId);
+  const defaults = _readPlatformQuotaDefaults();
+  return {
+    clientId: client.client_id,
+    dailyTokenLimit: _toPositiveNumber(client.daily_limit, defaults.default_daily_token_limit),
+    cooldownDurationMinutes: _toPositiveNumber(
+      client.cooldown_duration_minutes,
+      defaults.default_cooldown_minutes,
+    ),
+  };
 }
 
 function _syncQuotaRecordFromUsage(clientId, tokensUsed, quotaClient = null) {
@@ -354,8 +475,8 @@ function recordTokenEvent(clientId, eventData = {}) {
   _writeTokenEventsState(tokenState);
 
   const dailyState = _readDailyUsageState();
-  const existingDay = dailyState.days[dayBucket];
-  const dayRecord = _normalizeDayRecord(dayBucket, existingDay || {}, normalizedClientId);
+  const existingDay = dailyState.days[dayBucket] || {};
+  const dayRecord = _normalizeDayRecord(dayBucket, existingDay[normalizedClientId] || {}, normalizedClientId);
   dayRecord.client_id = normalizedClientId;
   dayRecord.date = dayBucket;
   dayRecord.total_tokens += event.total_tokens;
@@ -366,7 +487,10 @@ function recordTokenEvent(clientId, eventData = {}) {
     requests: Math.max(0, _toNumber(dayRecord.hours[hourKey]?.requests, 0)) + 1,
   };
   dayRecord.last_updated = safeRecordedAt.toISOString();
-  dailyState.days[dayBucket] = dayRecord;
+  dailyState.days[dayBucket] = {
+    ...existingDay,
+    [normalizedClientId]: dayRecord,
+  };
   _writeDailyUsageState(dailyState);
 
   const quotaClient = getOrCreateClient(normalizedClientId);
@@ -401,11 +525,14 @@ function _readDailyUsageForDate(clientId, date) {
   const normalizedClientId = _normalizeClientId(clientId);
   const bucket = String(date || _bucketDate()).trim() || _bucketDate();
   const state = _readDailyUsageState();
-  const record = state.days[bucket];
-  if (!record || (record.client_id && record.client_id !== normalizedClientId)) {
-    return _normalizeDayRecord(bucket, {}, normalizedClientId);
+  const dayBucket = state.days[bucket];
+  if (dayBucket && typeof dayBucket === "object") {
+    const record = dayBucket[normalizedClientId];
+    if (record) {
+      return _normalizeDayRecord(bucket, record, normalizedClientId);
+    }
   }
-  return _normalizeDayRecord(bucket, record, normalizedClientId);
+  return _normalizeDayRecord(bucket, {}, normalizedClientId);
 }
 
 function getDailyUsage(clientId, date = _bucketDate()) {
@@ -449,6 +576,7 @@ function getMonthlyUsage(clientId, days = 30) {
 function checkQuotaStatus(clientId) {
   const normalizedClientId = _normalizeClientId(clientId);
   const client = getOrCreateClient(normalizedClientId);
+  const defaults = _readPlatformQuotaDefaults();
   const today = _bucketDate();
   const usage = _readDailyUsageForDate(normalizedClientId, today);
   const now = Date.now();
@@ -464,7 +592,7 @@ function checkQuotaStatus(clientId) {
     }
   }
 
-  const limit = _toPositiveNumber(nextClient.daily_limit, DEFAULT_DAILY_TOKEN_LIMIT);
+  const limit = _toPositiveNumber(nextClient.daily_limit, defaults.default_daily_token_limit);
   const tokensUsed = usage.total_tokens;
   const tokensRemaining = Math.max(0, limit - tokensUsed);
 
@@ -554,4 +682,8 @@ module.exports = {
   enterCooldown,
   clearExpiredCooldowns,
   pruneOldEvents,
+  clearQuotaCache,
+  pruneClientFromDailyUsage,
+  normalizeQuotaStorage,
+  getEffectiveQuota,
 };

@@ -3,6 +3,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { spawn, spawnSync } = require("child_process");
 const { deleteChatbotsByContext } = require("./chatbot.service");
+const { DEFAULT_CLIENT_ID } = require("../config/env");
 
 const RAG_ENGINE_DIR = path.resolve(__dirname, "../../../rag_engine");
 const RAG_WEBSITES_DIR = path.join(RAG_ENGINE_DIR, "websites");
@@ -97,8 +98,24 @@ function _readRegistry() {
   }
   try {
     const parsed = JSON.parse(fs.readFileSync(REGISTRY_PATH, "utf8"));
-    parsed.contexts = Array.isArray(parsed.contexts) ? parsed.contexts : [];
-    return parsed;
+    const contexts = Array.isArray(parsed.contexts)
+      ? parsed.contexts.map((entry) => ({
+          ...entry,
+          client_id: Object.prototype.hasOwnProperty.call(entry, "client_id")
+            ? entry.client_id === null || entry.client_id === undefined || String(entry.client_id).trim() === ""
+              ? null
+              : String(entry.client_id).trim()
+            : String(DEFAULT_CLIENT_ID || "").trim() || null,
+        }))
+      : [];
+    const normalized = {
+      version: Number(parsed.version || 1),
+      contexts,
+    };
+    if (JSON.stringify(normalized) !== JSON.stringify(parsed)) {
+      _writeRegistry(normalized);
+    }
+    return normalized;
   } catch {
     return { version: 1, contexts: [] };
   }
@@ -122,10 +139,17 @@ function _normalizeStatus(status) {
 }
 
 function _mapEntry(entry) {
+  const hasClientId = Object.prototype.hasOwnProperty.call(entry, "client_id");
+  const normalizedClientId = hasClientId
+    ? entry.client_id === null || entry.client_id === undefined || String(entry.client_id).trim() === ""
+      ? null
+      : String(entry.client_id).trim()
+    : String(DEFAULT_CLIENT_ID || "").trim() || null;
   return {
     id: entry.id,
     name: entry.name || entry.id,
     seed_url: entry.seed_url || "",
+    client_id: normalizedClientId,
     status: _normalizeStatus(entry.status),
     path: entry.path || "",
     isDefault: Boolean(entry.is_default),
@@ -195,19 +219,28 @@ function _writeRegistryEntryStatus(contextId, status, extra = {}) {
   _writeRegistry(registry);
 }
 
-function listContexts() {
-  ensureWebsitesDir();
-  const registry = _readRegistry();
-  return (registry.contexts || []).map(_mapEntry);
+function _matchesClientScope(entry, clientId) {
+  if (clientId === null) return true;
+  const normalized = String(clientId || "").trim();
+  if (!normalized) return true;
+  return String(entry.client_id || "").trim() === normalized;
 }
 
-function getContext(contextId) {
-  return listContexts().find((context) => context.id === contextId) || null;
+function listContexts(clientId = null) {
+  ensureWebsitesDir();
+  const registry = _readRegistry();
+  return (registry.contexts || [])
+    .map(_mapEntry)
+    .filter((entry) => _matchesClientScope(entry, clientId));
+}
+
+function getContext(contextId, clientId = null) {
+  return listContexts(clientId).find((context) => context.id === contextId) || null;
 }
 
 function _findDuplicateSeedUrl(seedUrl) {
   const normalized = _normalizeUrl(seedUrl);
-  return listContexts().find((ctx) => ctx.seed_url && _normalizeUrl(ctx.seed_url) === normalized);
+  return listContexts(null).find((ctx) => ctx.seed_url && _normalizeUrl(ctx.seed_url) === normalized);
 }
 
 function _isLocalOrPrivateHostname(hostname) {
@@ -262,7 +295,7 @@ function _refreshRegistryContext(contextId, changes) {
   _writeRegistry(registry);
 }
 
-function createContext(url, options = {}) {
+function createContext(url, options = {}, clientId = null) {
   ensureWebsitesDir();
 
   let parsed;
@@ -286,7 +319,7 @@ function createContext(url, options = {}) {
 
   const duplicate = _findDuplicateSeedUrl(url);
   if (duplicate) {
-    const error = new Error(`URL already registered as context '${duplicate.id}'`);
+    const error = new Error(`URL already registered as context '${duplicate.id}' by another workspace`);
     error.status = 409;
     throw error;
   }
@@ -308,6 +341,7 @@ function createContext(url, options = {}) {
     name: parsed.hostname,
     url,
     seed_url: url,
+    client_id: clientId === null ? null : String(clientId || "").trim() || null,
     status: DISCOVERING,
     is_deletable: true,
     chunking,
@@ -331,6 +365,7 @@ function createContext(url, options = {}) {
     id,
     name: parsed.hostname,
     seed_url: url,
+    client_id: clientId === null ? null : String(clientId || "").trim() || null,
     status: DISCOVERING,
     path: relPath.replace(/\\/g, "/"),
     is_default: false,
@@ -367,8 +402,8 @@ function getContextDefaults() {
   };
 }
 
-function getContextStatus(contextId) {
-  const entry = getContext(contextId);
+function getContextStatus(contextId, clientId = null) {
+  const entry = getContext(contextId, clientId);
   if (!entry) return null;
 
   const logsDir = path.join(RAG_WEBSITES_DIR, contextId, "logs");
@@ -416,10 +451,25 @@ function _updateRegistryStatus(contextId, status) {
   _writeRegistry(registry);
 }
 
-function pauseContext(contextId) {
+function _assertContextOwnership(entry, clientId) {
+  if (!entry) return false;
+  if (clientId === null) return true;
+  const normalized = String(clientId || "").trim();
+  if (!normalized) return true;
+  return String(entry.client_id || "").trim() === normalized;
+}
+
+function pauseContext(contextId, clientId = null) {
   ensureWebsitesDir();
   const ctxDir = _contextDir(contextId);
   if (!fs.existsSync(ctxDir)) {
+    const error = new Error("Context not found");
+    error.status = 404;
+    throw error;
+  }
+
+  const entry = getContext(contextId, clientId);
+  if (!entry || !_assertContextOwnership(entry, clientId)) {
     const error = new Error("Context not found");
     error.status = 404;
     throw error;
@@ -429,13 +479,18 @@ function pauseContext(contextId) {
   fs.writeFileSync(_pauseFlagPath(contextId), new Date().toISOString(), "utf8");
   _updateRegistryStatus(contextId, PAUSED);
   _updateMetadata(contextId, { status: PAUSED });
-  return getContextStatus(contextId);
+  return getContextStatus(contextId, clientId);
 }
 
-function resumeContext(contextId) {
+function resumeContext(contextId, clientId = null) {
   ensureWebsitesDir();
-  const entry = getContext(contextId);
+  const entry = getContext(contextId, clientId);
   if (!entry) {
+    const error = new Error("Context not found");
+    error.status = 404;
+    throw error;
+  }
+  if (!_assertContextOwnership(entry, clientId)) {
     const error = new Error("Context not found");
     error.status = 404;
     throw error;
@@ -462,10 +517,10 @@ function resumeContext(contextId) {
     _updateMetadata(contextId, { status: PROCESSING_BATCH });
   }
 
-  return getContextStatus(contextId);
+  return getContextStatus(contextId, clientId);
 }
 
-function deleteContext(contextId) {
+function deleteContext(contextId, clientId = null) {
   ensureWebsitesDir();
   const ctxDir = path.join(RAG_WEBSITES_DIR, contextId);
   const resolved = path.resolve(ctxDir);
@@ -476,6 +531,13 @@ function deleteContext(contextId) {
     throw error;
   }
   if (!fs.existsSync(ctxDir)) {
+    const error = new Error("Context not found");
+    error.status = 404;
+    throw error;
+  }
+
+  const entry = getContext(contextId, clientId);
+  if (!entry || !_assertContextOwnership(entry, clientId)) {
     const error = new Error("Context not found");
     error.status = 404;
     throw error;
@@ -498,7 +560,7 @@ function deleteContext(contextId) {
   const logPath = path.join(logsDir, "cleanup.log");
 
   try {
-    deleteChatbotsByContext(contextId);
+    deleteChatbotsByContext(contextId, clientId);
   } catch {
     // Best-effort: context cleanup should continue even if chatbot cleanup fails.
   }

@@ -206,7 +206,7 @@ function Chat() {
 
   const handleNewChat = () => {
     createChat();
-    navigate("/");
+    navigate("/workspace");
   };
 
   const handleOpenPromptSettings = () => {

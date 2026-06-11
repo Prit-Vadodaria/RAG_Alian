@@ -1,6 +1,7 @@
 import { create } from "zustand";
+import { useAuthStore } from "./authStore";
 
-const STORAGE_KEY = "rag-workspace-chats";
+const STORAGE_KEY_PREFIX = "rag-workspace-chats";
 
 const createId = () =>
   `chat-${Math.random().toString(36).slice(2, 10)}-${Date.now()}`;
@@ -12,9 +13,12 @@ const createChat = () => ({
   messages: [],
 });
 
-const loadState = () => {
+const getStorageKey = (userId = "") =>
+  `${STORAGE_KEY_PREFIX}-${String(userId || "guest").trim() || "guest"}`;
+
+const loadState = (userId = "") => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey(userId));
     if (!raw) {
       const firstChat = createChat();
       return { chats: [firstChat], activeChatId: firstChat.id };
@@ -31,19 +35,30 @@ const loadState = () => {
   }
 };
 
-const saveState = (state) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+const saveState = (state, userId = "") => {
+  localStorage.setItem(getStorageKey(userId), JSON.stringify(state));
 };
 
-const initialState = loadState();
+const initialUserId = useAuthStore.getState().user?.id || "guest";
+const initialState = loadState(initialUserId);
 
 export const useChatStore = create((set, get) => ({
   chats: initialState.chats,
   activeChatId: initialState.activeChatId,
+  storageUserId: initialUserId,
+  loadForUser: (userId) => {
+    const nextUserId = String(userId || "guest").trim() || "guest";
+    const nextState = loadState(nextUserId);
+    set({
+      chats: nextState.chats,
+      activeChatId: nextState.activeChatId,
+      storageUserId: nextUserId,
+    });
+  },
   setActiveChat: (chatId) => {
     set((state) => {
       const next = { ...state, activeChatId: chatId };
-      saveState(next);
+      saveState(next, state.storageUserId);
       return next;
     });
   },
@@ -55,7 +70,7 @@ export const useChatStore = create((set, get) => ({
         chats: [newChat, ...state.chats],
         activeChatId: newChat.id,
       };
-      saveState(next);
+      saveState(next, state.storageUserId);
       return next;
     });
   },
@@ -67,7 +82,7 @@ export const useChatStore = create((set, get) => ({
           ? (chats[0]?.id ?? "")
           : state.activeChatId;
       const next = { ...state, chats, activeChatId };
-      saveState(next);
+      saveState(next, state.storageUserId);
       return next;
     });
   },
@@ -79,7 +94,7 @@ export const useChatStore = create((set, get) => ({
           : chat,
       );
       const next = { ...state, chats };
-      saveState(next);
+      saveState(next, state.storageUserId);
       return next;
     });
   },
@@ -89,7 +104,7 @@ export const useChatStore = create((set, get) => ({
         chat.id === chatId ? { ...chat, title } : chat,
       );
       const next = { ...state, chats };
-      saveState(next);
+      saveState(next, state.storageUserId);
       return next;
     });
   },
@@ -97,6 +112,6 @@ export const useChatStore = create((set, get) => ({
     const fresh = createChat();
     const next = { chats: [fresh], activeChatId: fresh.id };
     set(next);
-    saveState(next);
+    saveState(next, get().storageUserId);
   },
 }));

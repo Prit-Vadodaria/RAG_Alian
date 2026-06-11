@@ -20,21 +20,30 @@ import NewChatButton from "./NewChatButton";
 import ChatList from "./ChatList";
 import { useChatStore } from "../../store/chatStore";
 import ContextSelector from "../context/ContextSelector";
+import { useAuthStore } from "../../store/authStore";
 
 function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
   const navigate = useNavigate();
   const createChat = useChatStore((state) => state.createChat);
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const sidebarRef = useRef(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const handleNewChat = () => {
     createChat();
-    navigate("/");
+    navigate("/workspace");
     onClose?.();
   };
   const handleProfileNavClick = () => {
     setProfileMenuOpen(false);
     onClose?.();
+  };
+
+  const handleLogout = async () => {
+    setProfileMenuOpen(false);
+    await logout();
+    navigate("/login", { replace: true });
   };
 
   useEffect(() => {
@@ -220,8 +229,15 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
                       }
                     >
                       <SlidersHorizontal className="h-4 w-4" />
-                      <span>Settings</span>
+                      <span>Prompt Settings</span>
                     </NavLink>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-3 !rounded-[0.5rem] px-3 py-3 text-left text-sm font-medium text-[color:var(--on-dark-soft)] transition hover:border border-[rgba(255,255,255,0.08)] hover:bg-[color:var(--surface-dark-elevated)] hover:text-[color:var(--on-dark)]"
+                    >
+                      <span>Logout</span>
+                    </button>
                   </nav>
                 </div>
               )}
@@ -241,10 +257,10 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-[color:var(--on-dark)]">
-                      Alian Demo
+                      {user?.name || "Workspace user"}
                     </p>
                     <p className="truncate text-xs text-[color:var(--on-dark-soft)]">
-                      Workspace profile
+                      {user?.email || "Workspace profile"}
                     </p>
                   </div>
                 </div>

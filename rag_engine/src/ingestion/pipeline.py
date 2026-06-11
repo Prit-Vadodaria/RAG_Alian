@@ -19,6 +19,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from functools import partial
 from pathlib import Path
+from typing import Callable
 
 from src.chunking.chunker import build_chunks
 from src.config.settings import (
@@ -104,6 +105,7 @@ def process_raw_html_directory(
     workers: int = 1,
     output_base_dir: Path | None = None,
     chunking: dict[str, object] | None = None,
+    pause_check: Callable[[], bool] | None = None,
 ) -> ProcessingSummary:
     ensure_directories()
     cleaned_dir = CLEANED_MARKDOWN_DIR if output_base_dir is None else (output_base_dir / "cleaned_markdown")
@@ -125,7 +127,7 @@ def process_raw_html_directory(
         DUPLICATE_SIMILARITY_THRESHOLD,
     )
 
-    processed = _process_files(selected_files, workers, chunking=resolved_chunking)
+    processed = _process_files(selected_files, workers, chunking=resolved_chunking, pause_check=pause_check)
     seen_hashes: set[str] = set()
     seen_fingerprints: list[set[str]] = []
     seen_chunk_hashes: set[str] = set()
@@ -205,6 +207,7 @@ def process_raw_html_files(
     seen_hashes: set[str] | None = None,
     seen_fingerprints: list[set[str]] | None = None,
     seen_chunk_hashes: set[str] | None = None,
+    pause_check: Callable[[], bool] | None = None,
 ) -> BatchProcessingResult:
     ensure_directories()
     cleaned_dir = CLEANED_MARKDOWN_DIR if output_base_dir is None else (output_base_dir / "cleaned_markdown")
@@ -229,6 +232,8 @@ def process_raw_html_files(
 
     try:
         for source_path in sorted(source_paths):
+            if pause_check is not None and pause_check():
+                break
             result = _process_html_file(source_path, chunking=resolved_chunking)
             if result.error:
                 failed_pages += 1
@@ -396,14 +401,27 @@ def _dedupe_chunks(
     return unique
 
 
-def _process_files(files: list[Path], workers: int, *, chunking: dict[str, int]) -> list[ProcessedDocument]:
+def _process_files(
+    files: list[Path],
+    workers: int,
+    *,
+    chunking: dict[str, int],
+    pause_check: Callable[[], bool] | None = None,
+) -> list[ProcessedDocument]:
     if workers <= 1:
-        return [_process_html_file(path, chunking=chunking) for path in files]
+        results = []
+        for path in files:
+            if pause_check is not None and pause_check():
+                break
+            results.append(_process_html_file(path, chunking=chunking))
+        return results
     results: list[ProcessedDocument] = []
     with ProcessPoolExecutor(max_workers=workers) as executor:
         worker = partial(_process_html_file, chunking=chunking)
         futures = {executor.submit(worker, path): path for path in files}
         for future in as_completed(futures):
+            if pause_check is not None and pause_check():
+                break
             results.append(future.result())
     return sorted(results, key=lambda r: r.source_path)
 

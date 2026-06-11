@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 from urllib import robotparser
 from urllib.parse import urlparse
 
@@ -299,6 +299,7 @@ def crawl_urls(
     user_agent: str = DEFAULT_USER_AGENT,
     workers: int = 1,
     logs_dir: Path | None = None,
+    pause_check: Callable[[], bool] | None = None,
 ) -> list[CrawlResult]:
     """Crawl URLs and persist raw rendered HTML snapshots."""
     selected_urls = urls[:limit] if limit is not None else urls
@@ -329,6 +330,7 @@ def crawl_urls(
                 respect_robots=respect_robots,
                 crawl_delay_seconds=crawl_delay_seconds,
                 user_agent=user_agent,
+                pause_check=pause_check,
                 logger=logger,
             )
 
@@ -360,6 +362,7 @@ def _crawl_urls_serial(
     respect_robots: bool,
     crawl_delay_seconds: float,
     user_agent: str,
+    pause_check,
     logger,
 ) -> list[CrawlResult]:
     results: list[CrawlResult] = []
@@ -373,6 +376,8 @@ def _crawl_urls_serial(
             active_crawler.start()
 
         for url in urls:
+            if pause_check is not None and pause_check():
+                break
             _log(logger, "info", "Crawling URL %s", url)
             results.append(
                 _crawl_one_url(
@@ -404,6 +409,7 @@ def _crawl_urls_parallel(
     respect_robots: bool,
     crawl_delay_seconds: float,
     user_agent: str,
+    pause_check,
     logger,
 ) -> list[tuple[int, CrawlResult]]:
     indexed_urls = list(enumerate(urls))
@@ -420,6 +426,7 @@ def _crawl_urls_parallel(
                 respect_robots,
                 crawl_delay_seconds,
                 user_agent,
+                pause_check,
                 logger,
             )
             for batch in batches
@@ -438,6 +445,7 @@ def _crawl_url_batch(
     respect_robots: bool,
     crawl_delay_seconds: float,
     user_agent: str,
+    pause_check,
     logger,
 ) -> list[tuple[int, CrawlResult]]:
     robots_cache: dict[str, robotparser.RobotFileParser] = {}
@@ -446,6 +454,8 @@ def _crawl_url_batch(
 
     with WebsiteCrawler(user_agent=user_agent) as crawler:
         for index, url in indexed_urls:
+            if pause_check is not None and pause_check():
+                break
             result = _crawl_one_url(
                 url,
                 output_dir=output_dir,
@@ -474,6 +484,7 @@ def _crawl_one_url(
     last_request_at: dict[str, float],
     crawl_delay_seconds: float,
     user_agent: str,
+    pause_check,
     logger,
 ) -> CrawlResult:
     parsed = urlparse(url)
@@ -510,6 +521,14 @@ def _crawl_one_url(
             )
 
         _respect_crawl_delay(parsed.netloc, last_request_at, crawl_delay_seconds)
+        if pause_check is not None and pause_check():
+            return CrawlResult(
+                url=url,
+                output_path=None,
+                success=False,
+                error="Paused before fetch.",
+                status="paused",
+            )
         _log(logger, "info", "Fetching rendered page url=%s", url)
         html = crawler.crawl_page_with_retries(url)
         output_path = save_raw_html(url, html, output_dir)

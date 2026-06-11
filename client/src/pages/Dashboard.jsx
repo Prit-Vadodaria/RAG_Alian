@@ -33,6 +33,13 @@ const formatResetLabel = (minutes) => {
   return `Resets every ${value} minutes`;
 };
 
+const formatQuotaSource = (source) => {
+  const normalized = String(source || "").toLowerCase();
+  if (normalized === "override") return "Client Override";
+  if (normalized === "default") return "Platform Default";
+  return "Inherited";
+};
+
 const statusTone = (status) => {
   const normalized = String(status || "active").toLowerCase();
   if (normalized === "cooldown") {
@@ -94,6 +101,12 @@ function Dashboard() {
   const accountStatus = String(
     resolvedSummary.accountStatus || "active",
   ).toLowerCase();
+  const quotaDefaults = resolvedSummary.quotaDefaults || {};
+  const quotaEffective = resolvedSummary.quotaEffective || {};
+  const hasOverride =
+    Number(quotaEffective.dailyTokenLimit || 0) !== Number(quotaDefaults.dailyTokenLimit || 0) ||
+    Number(quotaEffective.cooldownDurationMinutes || 0) !==
+      Number(quotaDefaults.cooldownDurationMinutes || 0);
 
   if (loading && !summary) {
     return <DashboardSkeleton />;
@@ -122,7 +135,7 @@ function Dashboard() {
             ) : (
               <Shield className="h-4 w-4" />
             )}
-            <span>{accountStatus}</span>
+            <span>{accountStatus === "active" ? "Healthy" : accountStatus}</span>
           </div>
         </div>
         {resolvedSummary.planName ? (
@@ -130,6 +143,35 @@ function Dashboard() {
             Plan: {resolvedSummary.planName}
           </p>
         ) : null}
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="surface-card p-4">
+            <p className="text-kicker">Platform default</p>
+            <p className="mt-2 text-lg font-semibold text-[color:var(--on-dark)]">
+              {formatNumber(quotaDefaults.dailyTokenLimit || resolvedSummary.dailyTokenLimit)}
+            </p>
+            <p className="mt-1 text-xs text-[color:var(--on-dark-soft)]">
+              Daily token limit from admin config
+            </p>
+          </div>
+          <div className="surface-card p-4">
+            <p className="text-kicker">Effective limit</p>
+            <p className="mt-2 text-lg font-semibold text-[color:var(--on-dark)]">
+              {formatNumber(resolvedSummary.dailyTokenLimit)}
+            </p>
+            <p className="mt-1 text-xs text-[color:var(--on-dark-soft)]">
+              {hasOverride ? "Client override applied" : "Using platform default"}
+            </p>
+          </div>
+          <div className="surface-card p-4">
+            <p className="text-kicker">Reset timing</p>
+            <p className="mt-2 text-lg font-semibold text-[color:var(--on-dark)]">
+              {formatResetLabel(quotaDefaults.cooldownDurationMinutes || resolvedSummary.cooldownDurationMinutes)}
+            </p>
+            <p className="mt-1 text-xs text-[color:var(--on-dark-soft)]">
+              {formatQuotaSource(hasOverride ? "override" : "default")}
+            </p>
+          </div>
+        </div>
       </header>
 
       {error ? (
@@ -162,7 +204,7 @@ function Dashboard() {
           title="Daily Limit"
           value={formatNumber(resolvedSummary.dailyTokenLimit)}
           icon={Shield}
-          sublabel={formatResetLabel(resolvedSummary.cooldownDurationMinutes)}
+          sublabel={`${formatResetLabel(resolvedSummary.cooldownDurationMinutes)} · ${formatQuotaSource(hasOverride ? "override" : "default")}`}
         />
         <OverviewCard
           title="Remaining"

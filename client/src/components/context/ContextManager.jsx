@@ -156,6 +156,11 @@ export default function ContextManager() {
     }
   };
 
+  const normalizedStatus = (status) => String(status || "").toLowerCase();
+  const isPauseable = (status) => ["discovering", "processing_batch"].includes(normalizedStatus(status));
+  const isResumable = (status) => normalizedStatus(status) === "paused";
+  const isLockedReady = (status) => normalizedStatus(status) === "ready";
+
   return (
     <div className="space-y-5">
       <form onSubmit={handleAdd} className="surface-page p-5">
@@ -305,9 +310,10 @@ export default function ContextManager() {
                   onClick={() => handlePause(context)}
                   disabled={
                     updatingId === context.id ||
-                    !["discovering", "processing_batch"].includes(String(context.status || "").toLowerCase())
+                    !isPauseable(context.status) ||
+                    isLockedReady(context.status)
                   }
-                  className="button-secondary px-3 py-2 text-xs"
+                  className="button-danger px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {updatingId === context.id && ["discovering", "processing_batch"].includes(String(context.status || "").toLowerCase()) ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -321,9 +327,10 @@ export default function ContextManager() {
                   onClick={() => handleResume(context)}
                   disabled={
                     updatingId === context.id ||
-                    String(context.status || "").toLowerCase() !== "paused"
+                    !isResumable(context.status) ||
+                    isLockedReady(context.status)
                   }
-                  className="button-secondary px-3 py-2 text-xs"
+                  className="button-primary px-3 py-2 text-xs bg-[color:var(--success)] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {updatingId === context.id && String(context.status || "").toLowerCase() === "paused" ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

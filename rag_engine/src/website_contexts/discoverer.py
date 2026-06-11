@@ -16,6 +16,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -132,6 +133,7 @@ def discover_internal_urls(
     root_url: str,
     *,
     logs_dir: Path | None = None,
+    pause_check: Callable[[], bool] | None = None,
     request_timeout: int = REQUEST_TIMEOUT,
     max_retries: int = MAX_RETRIES,
     language: str = "en",
@@ -178,6 +180,10 @@ def discover_internal_urls(
         sitemap_urls = parse_sitemap(sitemap_url, timeout=request_timeout, visited=set())
         _log(logger, "info", "Sitemap returned %s raw URLs", len(sitemap_urls))
         for norm in filter_english_urls(sitemap_urls):   # issue #4: filter here too
+            if pause_check is not None and pause_check():
+                stop_reason = "paused"
+                _log(logger, "warning", "Discovery paused while seeding sitemap urls")
+                break
             parsed = urlparse(norm)
             if is_same_domain(parsed.netloc, root_netloc) and not is_asset_url(norm):
                 seeded.append(norm)
@@ -204,6 +210,10 @@ def discover_internal_urls(
     stop_reason: str | None = None
 
     while queue:
+        if pause_check is not None and pause_check():
+            stop_reason = "paused"
+            _log(logger, "warning", "Discovery paused before expanding url queue")
+            break
         url, depth = queue.popleft()
         if url not in results:
             results.append(url)
@@ -232,6 +242,10 @@ def discover_internal_urls(
             continue
 
         for href in _extract_links(html, url):
+            if pause_check is not None and pause_check():
+                stop_reason = "paused"
+                _log(logger, "warning", "Discovery paused while expanding links url=%s", url)
+                break
             norm = normalize_url(href)
             parsed = urlparse(norm)
             if (
@@ -246,6 +260,11 @@ def discover_internal_urls(
             seen.add(norm)
             queue.append((norm, depth + 1))
             _log(logger, "info", "Link queued depth=%s url=%s", depth + 1, norm)
+
+        if pause_check is not None and pause_check():
+            stop_reason = "paused"
+            _log(logger, "warning", "Discovery paused after processing url=%s", url)
+            break
 
     _log(logger, "info", "Discovery finished count=%s stop_reason=%s", len(results), stop_reason)
     if owns_logger and logger is not None:

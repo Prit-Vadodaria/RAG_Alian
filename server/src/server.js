@@ -3,7 +3,19 @@ const {
   PORT,
   DEFAULT_CLIENT_ID,
 } = require("./config/env");
+const configService = require("./services/config.service");
+const { runStartupMigrations } = require("./services/migration.service");
 const tokenService = require("./services/token.service");
+
+try {
+  configService.ensureDefaultConfig();
+  const migrationResults = runStartupMigrations();
+  console.log(
+    `[migration] users seeded=${migrationResults.usersSeeded} chatbots=${migrationResults.chatbotsNormalized} contexts=${migrationResults.contextsNormalized}`,
+  );
+} catch (error) {
+  console.error("[migration] startup migration failed:", error.message);
+}
 
 app.listen(PORT, () => {
   console.log(`Express server listening on http://localhost:${PORT}`);

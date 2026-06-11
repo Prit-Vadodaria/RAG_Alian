@@ -2,6 +2,16 @@ const { successResponse, errorResponse } = require("../utils/apiResponse");
 const { askRag } = require("../services/rag.service");
 const { DEFAULT_CLIENT_ID } = require("../config/env");
 
+function _getRequestClientId(req) {
+  if (req.user && Object.prototype.hasOwnProperty.call(req.user, "clientId")) {
+    return req.user.clientId;
+  }
+  if (req.user && Object.prototype.hasOwnProperty.call(req.user, "client_id")) {
+    return req.user.client_id;
+  }
+  return req.clientId || DEFAULT_CLIENT_ID;
+}
+
 const chatController = async (req, res, next) => {
   try {
     const { query, context_id, prompt_settings, chatbot_id, namespace, visitor_id, origin } = req.body;
@@ -26,7 +36,7 @@ const chatController = async (req, res, next) => {
       namespace,
       visitor_id,
       origin,
-      clientId: req.clientId || DEFAULT_CLIENT_ID,
+      clientId: _getRequestClientId(req),
     });
 
     return res.json(successResponse(response));

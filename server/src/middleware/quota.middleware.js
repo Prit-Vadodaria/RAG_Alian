@@ -1,23 +1,45 @@
 const tokenService = require("../services/token.service");
-const { DEFAULT_CLIENT_ID, OWNER_API_KEY } = require("../config/env");
+const chatbotService = require("../services/chatbot.service");
+const { OWNER_API_KEY } = require("../config/env");
 const { errorResponse } = require("../utils/apiResponse");
 
 function resolveClientId(req) {
+  const authenticatedClientId =
+    req.user && Object.prototype.hasOwnProperty.call(req.user, "clientId")
+      ? req.user.clientId
+      : req.user && Object.prototype.hasOwnProperty.call(req.user, "client_id")
+        ? req.user.client_id
+        : null;
+  if (authenticatedClientId) {
+    return authenticatedClientId;
+  }
+
+  const publicChatbotId = String(req.body?.chatbot_id || "").trim();
+  if (req.baseUrl === "/public" && publicChatbotId) {
+    const chatbot = chatbotService.getChatbot(publicChatbotId, null);
+    if (chatbot) {
+      return chatbot.client_id || null;
+    }
+  }
+
   const apiKey = String(req.header("x-api-key") || "").trim();
   if (!apiKey) {
-    return DEFAULT_CLIENT_ID;
+    return null;
   }
 
   if (OWNER_API_KEY && apiKey === OWNER_API_KEY) {
-    return DEFAULT_CLIENT_ID;
+    return null;
   }
 
-  return apiKey;
+  return apiKey || null;
 }
 
 function quotaMiddleware(req, res, next) {
   try {
     const clientId = resolveClientId(req);
+    if (!clientId) {
+      return res.status(401).json(errorResponse("Client scope is required."));
+    }
     req.clientId = clientId;
 
     const quota = tokenService.checkQuotaStatus(clientId);

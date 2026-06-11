@@ -11,6 +11,15 @@ function UsageProgressBar({ tokensUsed, dailyLimit, warningLevel }) {
     cooldown: "bg-[color:var(--error)]",
     suspended: "bg-[color:var(--error)]",
   };
+  const statusLabelMap = {
+    active: "Healthy",
+    warning: "Approaching limit",
+    critical: "Near limit",
+    exceeded: "Limit exceeded",
+    limited: "Approaching limit",
+    cooldown: "On cooldown",
+    suspended: "Suspended",
+  };
 
   return (
     <div className="surface-page p-5">
@@ -35,7 +44,7 @@ function UsageProgressBar({ tokensUsed, dailyLimit, warningLevel }) {
         <span>
           Status:{" "}
           <span className="font-semibold text-[color:var(--on-dark)]">
-            {warningLevel || "active"}
+            {statusLabelMap[warningLevel] || warningLevel || "Healthy"}
           </span>
         </span>
         <span>{Math.max(0, safeLimit - safeUsed).toLocaleString()} remaining</span>

@@ -1,26 +1,67 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
+import AdminRoute from "./components/auth/AdminRoute";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import AdminLayout from "./layouts/AdminLayout";
 import MainLayout from "./layouts/MainLayout";
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import Chat from "./pages/Chat";
 import Dashboard from "./pages/Dashboard";
 import Chatbots from "./pages/Chatbots";
 import System from "./pages/System";
 import Settings from "./pages/Settings";
 import Contexts from "./pages/Contexts";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminClients from "./pages/admin/AdminClients";
+import AdminClientDetail from "./pages/admin/AdminClientDetail";
+import AdminConfig from "./pages/admin/AdminConfig";
+import { useAuthStore } from "./store/authStore";
+import { useChatStore } from "./store/chatStore";
 
 function App() {
+  const hydrate = useAuthStore((state) => state.hydrate);
+  const userId = useAuthStore((state) => state.user?.id || "");
+  const loadChatStoreForUser = useChatStore((state) => state.loadForUser);
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    loadChatStoreForUser(userId || "guest");
+  }, [loadChatStoreForUser, userId]);
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainLayout />}>
-          <Route index element={<Chat />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="chatbots" element={<Chatbots />} />
-          <Route path="contexts" element={<Contexts />} />
-          <Route path="system" element={<System />} />
-          <Route path="prompt-settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+
+        <Route element={<ProtectedRoute />}>
+          <Route element={<MainLayout />}>
+            <Route path="/workspace" element={<Chat />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/chatbots" element={<Chatbots />} />
+            <Route path="/contexts" element={<Contexts />} />
+            <Route path="/system" element={<System />} />
+            <Route path="/prompt-settings" element={<Settings />} />
+          </Route>
         </Route>
+
+        <Route element={<AdminRoute />}>
+          <Route element={<AdminLayout />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/clients" element={<AdminClients />} />
+            <Route path="/admin/clients/:id" element={<AdminClientDetail />} />
+            <Route path="/admin/config" element={<AdminConfig />} />
+          </Route>
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

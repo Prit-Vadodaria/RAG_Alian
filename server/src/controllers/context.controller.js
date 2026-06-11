@@ -1,9 +1,20 @@
 const { successResponse, errorResponse } = require("../utils/apiResponse");
 const contextService = require("../services/context.service");
+const { DEFAULT_CLIENT_ID } = require("../config/env");
+
+function _getRequestClientId(req) {
+  if (req.user && Object.prototype.hasOwnProperty.call(req.user, "clientId")) {
+    return req.user.clientId;
+  }
+  if (req.user && Object.prototype.hasOwnProperty.call(req.user, "client_id")) {
+    return req.user.client_id;
+  }
+  return req.clientId || DEFAULT_CLIENT_ID;
+}
 
 const getContexts = async (req, res, next) => {
   try {
-    const contexts = await contextService.listContexts();
+    const contexts = await contextService.listContexts(_getRequestClientId(req));
     return res.json(successResponse(contexts));
   } catch (err) {
     return next(err);
@@ -16,7 +27,7 @@ const createContext = async (req, res, next) => {
     if (typeof url !== "string" || !url.trim()) {
       return res.status(400).json(errorResponse("'url' is required."));
     }
-    const result = await contextService.createContext(url.trim(), { chunking });
+    const result = await contextService.createContext(url.trim(), { chunking }, _getRequestClientId(req));
     return res.status(202).json(successResponse(result));
   } catch (err) {
     return next(err);
@@ -37,7 +48,7 @@ const deleteContext = async (req, res, next) => {
     const { contextId } = req.params;
     if (!contextId)
       return res.status(400).json(errorResponse("contextId required"));
-    await contextService.deleteContext(contextId);
+    await contextService.deleteContext(contextId, _getRequestClientId(req));
     return res.json(successResponse({ message: "Context deleted" }));
   } catch (err) {
     return next(err);
@@ -49,7 +60,7 @@ const getContextStatus = async (req, res, next) => {
     const { contextId } = req.params;
     if (!contextId)
       return res.status(400).json(errorResponse("contextId required"));
-    const info = await contextService.getContextStatus(contextId);
+    const info = await contextService.getContextStatus(contextId, _getRequestClientId(req));
     if (!info) return res.status(404).json(errorResponse("Context not found"));
     if (typeof info === "string")
       return res.json(successResponse({ status: info }));
@@ -67,7 +78,7 @@ const pauseContext = async (req, res, next) => {
     if (!contextId) {
       return res.status(400).json(errorResponse("contextId required"));
     }
-    const info = await contextService.pauseContext(contextId);
+    const info = await contextService.pauseContext(contextId, _getRequestClientId(req));
     return res.json(successResponse(info));
   } catch (err) {
     return next(err);
@@ -80,7 +91,7 @@ const resumeContext = async (req, res, next) => {
     if (!contextId) {
       return res.status(400).json(errorResponse("contextId required"));
     }
-    const info = await contextService.resumeContext(contextId);
+    const info = await contextService.resumeContext(contextId, _getRequestClientId(req));
     return res.json(successResponse(info));
   } catch (err) {
     return next(err);

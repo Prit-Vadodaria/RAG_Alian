@@ -1,9 +1,20 @@
 const { successResponse, errorResponse } = require("../utils/apiResponse");
 const chatbotService = require("../services/chatbot.service");
+const { DEFAULT_CLIENT_ID } = require("../config/env");
+
+function _getRequestClientId(req) {
+  if (req.user && Object.prototype.hasOwnProperty.call(req.user, "clientId")) {
+    return req.user.clientId;
+  }
+  if (req.user && Object.prototype.hasOwnProperty.call(req.user, "client_id")) {
+    return req.user.client_id;
+  }
+  return req.clientId || DEFAULT_CLIENT_ID;
+}
 
 const listChatbots = async (req, res, next) => {
   try {
-    return res.json(successResponse(chatbotService.listChatbots()));
+    return res.json(successResponse(chatbotService.listChatbots(_getRequestClientId(req))));
   } catch (error) {
     return next(error);
   }
@@ -11,7 +22,7 @@ const listChatbots = async (req, res, next) => {
 
 const createChatbot = async (req, res, next) => {
   try {
-    const chatbot = chatbotService.createChatbot(req.body || {});
+    const chatbot = chatbotService.createChatbot(req.body || {}, _getRequestClientId(req));
     return res.status(201).json(successResponse(chatbot));
   } catch (error) {
     if (error?.message === "A website context is required to create a chatbot.") {
@@ -23,7 +34,7 @@ const createChatbot = async (req, res, next) => {
 
 const getChatbot = async (req, res, next) => {
   try {
-    const chatbot = chatbotService.getChatbot(req.params.chatbotId);
+    const chatbot = chatbotService.getChatbot(req.params.chatbotId, _getRequestClientId(req));
     if (!chatbot) {
       return res.status(404).json(errorResponse("Chatbot not found."));
     }
@@ -35,7 +46,11 @@ const getChatbot = async (req, res, next) => {
 
 const updateChatbot = async (req, res, next) => {
   try {
-    const chatbot = chatbotService.updateChatbot(req.params.chatbotId, req.body || {});
+    const chatbot = chatbotService.updateChatbot(
+      req.params.chatbotId,
+      req.body || {},
+      _getRequestClientId(req),
+    );
     if (!chatbot) {
       return res.status(404).json(errorResponse("Chatbot not found."));
     }
@@ -47,7 +62,7 @@ const updateChatbot = async (req, res, next) => {
 
 const disableChatbot = async (req, res, next) => {
   try {
-    const chatbot = chatbotService.disableChatbot(req.params.chatbotId);
+    const chatbot = chatbotService.disableChatbot(req.params.chatbotId, _getRequestClientId(req));
     if (!chatbot) {
       return res.status(404).json(errorResponse("Chatbot not found."));
     }
@@ -59,7 +74,7 @@ const disableChatbot = async (req, res, next) => {
 
 const enableChatbot = async (req, res, next) => {
   try {
-    const chatbot = chatbotService.enableChatbot(req.params.chatbotId);
+    const chatbot = chatbotService.enableChatbot(req.params.chatbotId, _getRequestClientId(req));
     if (!chatbot) {
       return res.status(404).json(errorResponse("Chatbot not found."));
     }
@@ -71,7 +86,7 @@ const enableChatbot = async (req, res, next) => {
 
 const deleteChatbot = async (req, res, next) => {
   try {
-    const chatbot = chatbotService.deleteChatbot(req.params.chatbotId);
+    const chatbot = chatbotService.deleteChatbot(req.params.chatbotId, _getRequestClientId(req));
     if (!chatbot) {
       return res.status(404).json(errorResponse("Chatbot not found."));
     }
@@ -83,7 +98,7 @@ const deleteChatbot = async (req, res, next) => {
 
 const exportSnippet = async (req, res, next) => {
   try {
-    const chatbot = chatbotService.getChatbot(req.params.chatbotId);
+    const chatbot = chatbotService.getChatbot(req.params.chatbotId, _getRequestClientId(req));
     if (!chatbot) {
       return res.status(404).json(errorResponse("Chatbot not found."));
     }

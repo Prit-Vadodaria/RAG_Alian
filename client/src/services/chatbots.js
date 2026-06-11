@@ -1,15 +1,11 @@
-import axios from "axios";
+import { createApiClient } from "./http";
 
 const SERVER_BASE =
   import.meta.env.VITE_CONTEXT_API_URL ||
   import.meta.env.VITE_API_BASE_URL ||
   "http://127.0.0.1:5000/api";
 
-const client = axios.create({
-  baseURL: SERVER_BASE,
-  timeout: 60000,
-  headers: { Accept: "application/json", "Content-Type": "application/json" },
-});
+const client = createApiClient(SERVER_BASE);
 
 const unwrap = (response) => response.data?.data ?? response.data;
 

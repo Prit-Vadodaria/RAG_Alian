@@ -2,14 +2,18 @@ const express = require("express");
 const cors = require("cors");
 
 const healthRoutes = require("./routes/health.routes");
+const authRoutes = require("./routes/auth.routes");
 const chatRoutes = require("./routes/chat.routes");
 const contextRoutes = require("./routes/context.routes");
 const chatbotRoutes = require("./routes/chatbot.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
+const adminRoutes = require("./routes/admin.routes");
+const configRoutes = require("./routes/config.routes");
 const publicRoutes = require("./routes/public.routes");
 
 const { errorHandler } = require("./middleware/error.middleware");
 const { loggerMiddleware } = require("./middleware/logger.middleware");
+const { attachAuthContext, requireAdmin } = require("./middleware/auth.middleware");
 
 const app = express();
 
@@ -52,11 +56,15 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/health", healthRoutes);
+app.use("/api/auth", authRoutes);
 
-app.use("/api/chat", chatRoutes);
-app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/contexts", contextRoutes);
-app.use("/api/chatbots", chatbotRoutes);
+app.use("/api/chat", attachAuthContext, chatRoutes);
+app.use("/api/dashboard", attachAuthContext, dashboardRoutes);
+app.use("/api/contexts", attachAuthContext, contextRoutes);
+app.use("/api/chatbots", attachAuthContext, chatbotRoutes);
+app.use("/api/admin", attachAuthContext, requireAdmin, adminRoutes);
+app.use("/api/admin/config", attachAuthContext, requireAdmin, configRoutes);
+app.use("/api/config", configRoutes);
 app.use("/public", publicRoutes);
 
 app.use(errorHandler);

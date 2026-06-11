@@ -1,22 +1,28 @@
 const { successResponse } = require("../utils/apiResponse");
 const chatbotService = require("../services/chatbot.service");
 const contextService = require("../services/context.service");
+const configService = require("../services/config.service");
 const tokenService = require("../services/token.service");
-const {
-  DEFAULT_CLIENT_ID,
-  DEFAULT_COOLDOWN_MINUTES,
-} = require("../config/env");
+const { DEFAULT_CLIENT_ID } = require("../config/env");
 
 function _resolveClientId(req) {
+  if (req.user && Object.prototype.hasOwnProperty.call(req.user, "clientId")) {
+    return req.user.clientId;
+  }
+  if (req.user && Object.prototype.hasOwnProperty.call(req.user, "client_id")) {
+    return req.user.client_id;
+  }
   return req.clientId || DEFAULT_CLIENT_ID;
 }
 
 const getDashboardSummary = async (req, res, next) => {
   try {
     const clientId = _resolveClientId(req);
+    const config = configService.getConfig();
     const quota = tokenService.checkQuotaStatus(clientId);
-    const contexts = contextService.listContexts();
-    const chatbots = chatbotService.listChatbots();
+    const effectiveQuota = tokenService.getEffectiveQuota(clientId);
+    const contexts = contextService.listContexts(clientId);
+    const chatbots = chatbotService.listChatbots(clientId);
 
     return res.json(
       successResponse({
@@ -25,9 +31,9 @@ const getDashboardSummary = async (req, res, next) => {
         chatbotsCreated: chatbots.length,
         todayTokensUsed: quota.tokensUsed,
         todayRequests: tokenService.getDailyUsage(clientId).totalRequests,
-        dailyTokenLimit: quota.dailyLimit,
+        dailyTokenLimit: effectiveQuota.dailyTokenLimit,
         tokensRemaining: quota.tokensRemaining,
-        cooldownDurationMinutes: DEFAULT_COOLDOWN_MINUTES,
+        cooldownDurationMinutes: Number(config?.quotas?.default_cooldown_minutes || quota.cooldownDurationMinutes || 0),
         usagePercent: Number(
           (quota.dailyLimit > 0 ? (quota.tokensUsed / quota.dailyLimit) * 100 : 0).toFixed(2),
         ),
@@ -35,6 +41,11 @@ const getDashboardSummary = async (req, res, next) => {
         cooldownUntil: quota.cooldownUntil,
         planName: quota.planName,
         warningLevel: quota.status,
+        quotaDefaults: {
+          dailyTokenLimit: Number(config?.quotas?.default_daily_token_limit || 0),
+          cooldownDurationMinutes: Number(config?.quotas?.default_cooldown_minutes || 0),
+        },
+        quotaEffective: effectiveQuota,
       }),
     );
   } catch (error) {

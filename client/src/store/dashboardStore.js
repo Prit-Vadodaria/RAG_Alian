@@ -27,6 +27,12 @@ export const useDashboardStore = create((set) => ({
     }),
 }));
 
+if (typeof window !== "undefined") {
+  window.addEventListener("rag-config-updated", () => {
+    useDashboardStore.getState().fetchSummary();
+  });
+}
+
 export const dashboardSelectors = {
   summary: (state) => state.summary,
   loading: (state) => state.loading,

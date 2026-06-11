@@ -1,4 +1,4 @@
-import axios from "axios";
+import { createApiClient } from "./http";
 import apiClient from "./api";
 
 const SERVER_BASE =
@@ -6,14 +6,7 @@ const SERVER_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   "http://127.0.0.1:5000/api";
 
-const serverClient = axios.create({
-  baseURL: SERVER_BASE,
-  timeout: 60000,
-  headers: {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-  },
-});
+const serverClient = createApiClient(SERVER_BASE);
 
 export const askRag = async (
   query,

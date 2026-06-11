@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { DEFAULT_CLIENT_ID } = require("../config/env");
 
 const DATA_DIR = path.resolve(__dirname, "../../data");
 const CHATBOTS_PATH = path.join(DATA_DIR, "chatbots.json");
@@ -20,6 +21,11 @@ const DEFAULT_PROMPT_CONFIG = Object.freeze({
   website_identity_mode: true,
   constraints: [],
 });
+
+function _normalizeClientId(clientId) {
+  const value = String(clientId || "").trim();
+  return value || null;
+}
 
 const DEFAULT_STATE = {
   version: 1,
@@ -143,9 +149,14 @@ function _normalizeChatbotRecord(chatbot) {
   const chromaDir =
     String(chatbot.chroma_dir || "").trim() ||
     path.posix.join("websites", primaryContextId || "unknown", "embeddings");
+  const hasClientId = Object.prototype.hasOwnProperty.call(chatbot, "client_id");
+  const normalizedClientId = hasClientId
+    ? _normalizeClientId(chatbot.client_id)
+    : _normalizeClientId(DEFAULT_CLIENT_ID);
 
   return {
     id: String(chatbot.id || "").trim(),
+    client_id: normalizedClientId,
     name: String(chatbot.name || "").trim() || "Untitled chatbot",
     public_token: String(chatbot.public_token || "").trim(),
     namespace: String(chatbot.namespace || "").trim() || `chatbot_${chatbot.id}`,
@@ -167,24 +178,32 @@ function _normalizeChatbotRecord(chatbot) {
   };
 }
 
-function listChatbots() {
+function _matchesClientScope(chatbot, clientId) {
+  if (clientId === null) return true;
+  const normalized = _normalizeClientId(clientId);
+  if (!normalized) return true;
+  return _normalizeClientId(chatbot.client_id) === normalized;
+}
+
+function listChatbots(clientId = null) {
   const state = _readState();
   return (state.chatbots || [])
     .filter((chatbot) => !chatbot.deleted_at)
-    .map(_normalizeChatbotRecord);
+    .map(_normalizeChatbotRecord)
+    .filter((chatbot) => _matchesClientScope(chatbot, clientId));
 }
 
-function getChatbot(chatbotId) {
+function getChatbot(chatbotId, clientId = null) {
   if (!chatbotId) return null;
-  return listChatbots().find((chatbot) => chatbot.id === chatbotId) || null;
+  return listChatbots(clientId).find((chatbot) => chatbot.id === chatbotId) || null;
 }
 
-function listChatbotsByContext(contextId) {
+function listChatbotsByContext(contextId, clientId = null) {
   const target = String(contextId || "").trim();
   if (!target) {
     return [];
   }
-  return listChatbots().filter((chatbot) => {
+  return listChatbots(clientId).filter((chatbot) => {
     if (chatbot.primary_context_id === target) {
       return true;
     }
@@ -192,7 +211,7 @@ function listChatbotsByContext(contextId) {
   });
 }
 
-function createChatbot(input) {
+function createChatbot(input, clientId = null) {
   const state = _readState();
   const now = new Date().toISOString();
   const name = String(input?.name || "").trim() || "New chatbot";
@@ -209,6 +228,7 @@ function createChatbot(input) {
     name,
     public_token: _createId("pub"),
     namespace: "",
+    client_id: _normalizeClientId(clientId),
     is_active: input?.is_active ?? true,
     welcome_message: input?.welcome_message || "",
     theme_config: input?.theme_config || {},
@@ -227,11 +247,22 @@ function createChatbot(input) {
   return chatbot;
 }
 
-function updateChatbot(chatbotId, changes) {
+function _assertChatbotOwnership(chatbot, clientId) {
+  if (!chatbot) return false;
+  if (clientId === null) return true;
+  const normalized = _normalizeClientId(clientId);
+  if (!normalized) return true;
+  return _normalizeClientId(chatbot.client_id) === normalized;
+}
+
+function updateChatbot(chatbotId, changes, clientId = null) {
   const state = _readState();
   let updated = null;
   state.chatbots = (state.chatbots || []).map((chatbot) => {
     if (chatbot.id !== chatbotId) return chatbot;
+    if (!_assertChatbotOwnership(_normalizeChatbotRecord(chatbot), clientId)) {
+      return chatbot;
+    }
     const merged = _normalizeChatbotRecord({
       ...chatbot,
       ...changes,
@@ -254,12 +285,12 @@ function updateChatbot(chatbotId, changes) {
   return updated;
 }
 
-function disableChatbot(chatbotId) {
-  return updateChatbot(chatbotId, { is_active: false });
+function disableChatbot(chatbotId, clientId = null) {
+  return updateChatbot(chatbotId, { is_active: false }, clientId);
 }
 
-function enableChatbot(chatbotId) {
-  return updateChatbot(chatbotId, { is_active: true, deleted_at: null });
+function enableChatbot(chatbotId, clientId = null) {
+  return updateChatbot(chatbotId, { is_active: true, deleted_at: null }, clientId);
 }
 
 function _deleteChatbotLogDir(chatbotId) {
@@ -267,10 +298,13 @@ function _deleteChatbotLogDir(chatbotId) {
   fs.rmSync(chatbotDir, { recursive: true, force: true });
 }
 
-function deleteChatbot(chatbotId) {
+function deleteChatbot(chatbotId, clientId = null) {
   const state = _readState();
   const chatbot = (state.chatbots || []).map(_normalizeChatbotRecord).find((entry) => entry.id === chatbotId);
   if (!chatbot) {
+    return null;
+  }
+  if (!_assertChatbotOwnership(chatbot, clientId)) {
     return null;
   }
 
@@ -286,10 +320,10 @@ function deleteChatbot(chatbotId) {
   return chatbot;
 }
 
-function deleteChatbotsByContext(contextId) {
-  const chatbots = listChatbotsByContext(contextId);
+function deleteChatbotsByContext(contextId, clientId = null) {
+  const chatbots = listChatbotsByContext(contextId, clientId);
   for (const chatbot of chatbots) {
-    deleteChatbot(chatbot.id);
+    deleteChatbot(chatbot.id, clientId);
   }
   return chatbots;
 }

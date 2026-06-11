@@ -1,7 +1,6 @@
 const { successResponse, errorResponse } = require("../utils/apiResponse");
 const chatbotService = require("../services/chatbot.service");
 const { askRag } = require("../services/rag.service");
-const { DEFAULT_CLIENT_ID } = require("../config/env");
 
 function _getRequestOrigin(req) {
   return req.get("origin") || req.get("referer") || "";
@@ -60,7 +59,7 @@ const publicChat = async (req, res, next) => {
       visitor_id: visitorId,
       origin,
       prompt_settings: chatbot.prompt_config,
-      clientId: req.clientId || DEFAULT_CLIENT_ID,
+      clientId: chatbot.client_id || req.clientId || null,
     };
 
     let response;
