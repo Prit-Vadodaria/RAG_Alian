@@ -34,7 +34,7 @@ function UsageProgressBar({ tokensUsed, dailyLimit, warningLevel }) {
           {pct.toFixed(1)}%
         </p>
       </div>
-      <div className="mt-4 h-3 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+      <div className="mt-4 h-3 overflow-hidden rounded-full bg-[color:var(--surface-2)]">
         <div
           className={`h-full rounded-full transition-all duration-500 ${colorMap[warningLevel] || colorMap.none}`}
           style={{ width: `${pct}%` }}

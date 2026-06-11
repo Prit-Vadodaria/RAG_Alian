@@ -51,7 +51,7 @@ function AdminDashboard() {
         </p>
       </header>
       {loading ? <div className="surface-page p-4 text-sm text-[color:var(--on-dark-soft)]">Loading platform metrics...</div> : null}
-      {error ? <div className="surface-page border border-[rgba(184,78,78,0.22)] p-4 text-sm text-[#f1c0c0]">{error}</div> : null}
+      {error ? <div className="surface-page border border-[color:var(--error)]/30 p-4 text-sm text-[color:var(--error)]">{error}</div> : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card title="Total Clients" value={stats?.totalClients ?? 0} icon={Users} sublabel="Registered client accounts" />
         <Card title="Active Clients" value={stats?.activeClients ?? 0} icon={Shield} sublabel="Enabled accounts" />

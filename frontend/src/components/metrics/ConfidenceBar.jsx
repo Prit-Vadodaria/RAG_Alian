@@ -7,7 +7,7 @@ function ConfidenceBar({ label, value, colorClass }) {
         <span>{label}</span>
         <span>{width}%</span>
       </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-[rgba(23,21,20,0.08)]">
+      <div className="h-2.5 overflow-hidden rounded-full bg-[color:var(--surface-2)]">
         <div
           className={`h-full rounded-full ${colorClass}`}
           style={{ width: `${width}%` }}

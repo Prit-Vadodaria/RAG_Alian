@@ -20,7 +20,7 @@ function MainLayout() {
         />
 
         <div className="relative flex flex-1 flex-col overflow-hidden">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(200,255,87,0.09),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.04),transparent_26%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,var(--accent-soft),transparent_28%),radial-gradient(circle_at_bottom_left,var(--ink-soft-overlay),transparent_26%)]" />
           <main className="relative flex-1 overflow-hidden px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
             <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col overflow-hidden">
               <Outlet />

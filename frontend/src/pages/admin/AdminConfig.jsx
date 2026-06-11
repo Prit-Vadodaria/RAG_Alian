@@ -89,13 +89,13 @@ function AdminConfig() {
         </p>
       </header>
 
-      {error ? <div className="surface-page border border-[rgba(184,78,78,0.22)] p-4 text-sm text-[#f1c0c0]">{error}</div> : null}
-      {notice ? <div className="surface-page border border-[rgba(79,157,103,0.22)] bg-[rgba(79,157,103,0.08)] p-4 text-sm text-[#c8e6d1]">{notice}</div> : null}
+      {error ? <div className="surface-page border border-[color:var(--error)]/30 p-4 text-sm text-[color:var(--error)]">{error}</div> : null}
+      {notice ? <div className="surface-page border border-[color:var(--success)]/30 bg-[color:var(--success)]/10 p-4 text-sm text-[color:var(--success)]">{notice}</div> : null}
       <div className="space-y-4">
         <section className="surface-page space-y-5 p-5">
           {loading ? <p className="text-sm text-[color:var(--on-dark-soft)]">Loading platform settings...</p> : null}
 
-          <label className="flex items-center justify-between gap-4 rounded-2xl border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] px-4 py-3">
+          <label className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--hairline)] bg-[color:var(--surface-2)] px-4 py-3">
             <span className="text-sm text-[color:var(--on-dark-soft)]">Registration enabled</span>
             <input
               type="checkbox"
@@ -257,7 +257,7 @@ function AdminConfig() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] p-4">
+          <div className="rounded-2xl border border-[var(--hairline)] bg-[color:var(--surface-1)] p-4">
             <label className="flex items-center justify-between gap-4">
               <div className="space-y-1">
                 <span className="block text-sm font-medium text-[color:var(--on-dark)]">Enable reranking</span>

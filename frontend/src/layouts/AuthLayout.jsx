@@ -1,6 +1,6 @@
 function AuthLayout({ eyebrow, title, description, children, footer }) {
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(200,255,87,0.14),transparent_30%),linear-gradient(180deg,#0d0d0d_0%,#090909_100%)] px-4 py-10 text-[color:var(--on-dark)]">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,var(--accent-soft-strong),transparent_30%),linear-gradient(180deg,var(--surface-dark-soft)_0%,var(--surface-dark)_100%)] px-4 py-10 text-[color:var(--on-dark)]">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-5xl items-center justify-center">
         <div className="grid w-full gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="surface-page flex flex-col justify-between gap-6 p-8 lg:p-10">

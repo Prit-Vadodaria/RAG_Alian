@@ -18,9 +18,9 @@ function Landing() {
 
   if (isHydrating) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#090909] text-white">
-        <div className="flex items-center gap-3 text-sm text-[#555]">
-          <div className="h-1.5 w-1.5 rounded-full bg-[#c8ff57] animate-pulse" />
+      <div className="flex min-h-screen items-center justify-center bg-[color:var(--canvas)] text-[color:var(--on-dark)]">
+        <div className="flex items-center gap-3 text-sm text-[color:var(--ink-muted)]">
+          <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--primary)]" />
           Loading…
         </div>
       </div>
@@ -36,8 +36,8 @@ function Landing() {
       {/* ── NAV ─────────────────────────────────────────────── */}
       <header
         style={{
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          background: "rgba(9,9,9,0.85)",
+          borderBottom: "1px solid var(--hairline)",
+          background: "var(--surface-dark-overlay)",
           backdropFilter: "blur(16px)",
           position: "sticky",
           top: 0,
@@ -51,13 +51,13 @@ function Landing() {
                 width: 32,
                 height: 32,
                 borderRadius: 8,
-                background: "#c8ff57",
+                background: "var(--primary)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <Zap size={16} color="#000" strokeWidth={2.5} />
+              <Zap size={16} color="var(--canvas)" strokeWidth={2.5} />
             </div>
             <span
               style={{
@@ -74,23 +74,23 @@ function Landing() {
             <Link
               to="/login"
               style={{
-                color: "#999",
+                color: "var(--ink-soft)",
                 fontSize: 14,
                 fontWeight: 500,
                 padding: "8px 16px",
                 borderRadius: 8,
                 transition: "color 140ms",
               }}
-              onMouseEnter={(e) => (e.target.style.color = "#f5f5f5")}
-              onMouseLeave={(e) => (e.target.style.color = "#999")}
+              onMouseEnter={(e) => (e.target.style.color = "var(--on-dark)")}
+              onMouseLeave={(e) => (e.target.style.color = "var(--ink-soft)")}
             >
               Sign in
             </Link>
             <Link
               to="/signup"
               style={{
-                background: "#c8ff57",
-                color: "#000",
+                background: "var(--primary)",
+                color: "var(--canvas)",
                 fontWeight: 600,
                 fontSize: 14,
                 padding: "8px 18px",
@@ -101,12 +101,11 @@ function Landing() {
                 gap: 6,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#a8e040";
-                e.currentTarget.style.boxShadow =
-                  "0 0 20px rgba(200,255,87,0.3)";
+                e.currentTarget.style.background = "var(--primary-active)";
+                e.currentTarget.style.boxShadow = "0 0 20px var(--accent-glow)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#c8ff57";
+                e.currentTarget.style.background = "var(--primary)";
                 e.currentTarget.style.boxShadow = "none";
               }}
             >
@@ -138,9 +137,9 @@ function Landing() {
             display: "inline-flex",
             alignItems: "center",
             gap: 8,
-            border: "1px solid rgba(200,255,87,0.26)",
+            border: "1px solid var(--accent-border)",
             borderRadius: 9999,
-            background: "rgba(200,255,87,0.06)",
+            background: "var(--accent-soft)",
             padding: "6px 14px",
             marginBottom: 32,
             position: "relative",
@@ -152,13 +151,13 @@ function Landing() {
               width: 6,
               height: 6,
               borderRadius: "50%",
-              background: "#c8ff57",
+              background: "var(--primary)",
               display: "inline-block",
             }}
           />
           <span
             style={{
-              color: "#c8ff57",
+              color: "var(--primary)",
               fontSize: 12,
               fontWeight: 600,
               letterSpacing: "0.08em",
@@ -181,7 +180,7 @@ function Landing() {
             zIndex: 1,
           }}
         >
-          Your website. <span style={{ color: "#c8ff57" }}>Answered.</span>
+          Your website. <span style={{ color: "var(--primary)" }}>Answered.</span>
           <br />
           Instantly.
         </h1>
@@ -208,7 +207,7 @@ function Landing() {
             to="/signup"
             style={{
               background: "var(--primary)",
-              color: "#000",
+              color: "var(--canvas)",
               fontWeight: 700,
               fontSize: 15,
               padding: "13px 28px",
@@ -220,7 +219,7 @@ function Landing() {
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "var(--primary-active)";
-              e.currentTarget.style.boxShadow = "0 0 32px rgba(200,255,87,0.28)";
+              e.currentTarget.style.boxShadow = "0 0 32px var(--accent-glow)";
               e.currentTarget.style.transform = "translateY(-2px)";
             }}
             onMouseLeave={(e) => {
@@ -243,7 +242,7 @@ function Landing() {
               transition: "border-color 140ms, transform 140ms",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "rgba(200,255,87,0.26)";
+              e.currentTarget.style.borderColor = "var(--accent-border)";
               e.currentTarget.style.transform = "translateY(-2px)";
             }}
             onMouseLeave={(e) => {
@@ -278,7 +277,7 @@ function Landing() {
                   height: 5,
                   borderRadius: "50%",
                   background: "var(--primary)",
-                  boxShadow: "0 0 10px rgba(200,255,87,0.45)",
+                  boxShadow: "0 0 10px var(--accent-glow)",
                 }}
               />
               {f}
@@ -291,13 +290,13 @@ function Landing() {
       <section
         style={{
           padding: "80px 24px",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
+          borderTop: "1px solid var(--hairline)",
         }}
       >
         <div className="mx-auto max-w-6xl">
           <p
             style={{
-              color: "#c8ff57",
+              color: "var(--primary)",
               fontSize: 12,
               fontWeight: 600,
               letterSpacing: "0.18em",
@@ -321,7 +320,7 @@ function Landing() {
           <p
             style={{
               textAlign: "center",
-              color: "#666",
+              color: "var(--muted)",
               maxWidth: 500,
               margin: "0 auto 60px",
             }}
@@ -360,19 +359,18 @@ function Landing() {
               <div
                 key={num}
                 style={{
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  border: "1px solid var(--hairline)",
                   borderRadius: 14,
-                  background: "#111",
+                  background: "var(--surface-1)",
                   padding: "28px 24px",
                   transition: "border-color 200ms, box-shadow 200ms",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(200,255,87,0.25)";
-                  e.currentTarget.style.boxShadow =
-                    "0 0 30px rgba(200,255,87,0.06)";
+                  e.currentTarget.style.borderColor = "var(--accent-border)";
+                  e.currentTarget.style.boxShadow = "0 0 30px var(--accent-glow)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                  e.currentTarget.style.borderColor = "var(--hairline)";
                   e.currentTarget.style.boxShadow = "none";
                 }}
               >
@@ -386,7 +384,7 @@ function Landing() {
                 >
                   <span
                     style={{
-                      color: "#c8ff57",
+                      color: "var(--primary)",
                       fontSize: 11,
                       fontWeight: 700,
                       letterSpacing: "0.1em",
@@ -399,13 +397,13 @@ function Landing() {
                       width: 32,
                       height: 32,
                       borderRadius: 8,
-                      background: "rgba(200,255,87,0.1)",
+                      background: "var(--accent-soft-strong)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    <Icon size={15} color="#c8ff57" />
+                    <Icon size={15} color="var(--primary)" />
                   </div>
                 </div>
                 <h3
@@ -418,7 +416,7 @@ function Landing() {
                 >
                   {title}
                 </h3>
-                <p style={{ color: "#666", fontSize: 13.5, lineHeight: 1.6 }}>
+                <p style={{ color: "var(--muted)", fontSize: 13.5, lineHeight: 1.6 }}>
                   {body}
                 </p>
               </div>
@@ -431,13 +429,13 @@ function Landing() {
       <section
         style={{
           padding: "80px 24px",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
+          borderTop: "1px solid var(--hairline)",
         }}
       >
         <div className="mx-auto max-w-6xl">
           <p
             style={{
-              color: "#c8ff57",
+              color: "var(--primary)",
               fontSize: 12,
               fontWeight: 600,
               letterSpacing: "0.18em",
@@ -495,17 +493,17 @@ function Landing() {
               <div
                 key={title}
                 style={{
-                  border: "1px solid rgba(255,255,255,0.07)",
+                  border: "1px solid var(--hairline)",
                   borderRadius: 14,
-                  background: "#0e0e0e",
+                  background: "var(--surface-1)",
                   padding: "24px 22px",
                   transition: "border-color 200ms",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(200,255,87,0.2)";
+                  e.currentTarget.style.borderColor = "var(--accent-border)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
+                  e.currentTarget.style.borderColor = "var(--hairline)";
                 }}
               >
                 <div
@@ -513,14 +511,14 @@ function Landing() {
                     width: 36,
                     height: 36,
                     borderRadius: 8,
-                    background: "rgba(200,255,87,0.1)",
+                    background: "var(--accent-soft-strong)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     marginBottom: 14,
                   }}
                 >
-                  <Icon size={16} color="#c8ff57" />
+                  <Icon size={16} color="var(--primary)" />
                 </div>
                 <h3
                   style={{
@@ -532,7 +530,7 @@ function Landing() {
                 >
                   {title}
                 </h3>
-                <p style={{ color: "#666", fontSize: 13.5, lineHeight: 1.6 }}>
+                <p style={{ color: "var(--muted)", fontSize: 13.5, lineHeight: 1.6 }}>
                   {body}
                 </p>
               </div>
@@ -545,9 +543,9 @@ function Landing() {
       <section
         style={{
           padding: "80px 24px",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          background: "#0d0d0d",
+          borderTop: "1px solid var(--hairline)",
+          borderBottom: "1px solid var(--hairline)",
+          background: "var(--surface-dark-soft)",
         }}
       >
         <div className="mx-auto max-w-4xl grid gap-8 sm:grid-cols-3 text-center">
@@ -568,13 +566,13 @@ function Landing() {
                   fontSize: "clamp(2rem, 4vw, 3rem)",
                   fontWeight: 800,
                   letterSpacing: "-0.04em",
-                  color: "#c8ff57",
+                  color: "var(--primary)",
                   marginBottom: 8,
                 }}
               >
                 {value}
               </div>
-              <p style={{ color: "#666", fontSize: 13.5, lineHeight: 1.5 }}>
+              <p style={{ color: "var(--muted)", fontSize: 13.5, lineHeight: 1.5 }}>
                 {label}
               </p>
             </div>
@@ -586,7 +584,7 @@ function Landing() {
       <section
         style={{
           padding: "80px 24px",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
+          borderTop: "1px solid var(--hairline)",
         }}
       >
         <div className="mx-auto max-w-6xl">
@@ -611,13 +609,13 @@ function Landing() {
               <div
                 key={title}
                 style={{
-                  border: "1px solid rgba(200,255,87,0.12)",
+                  border: "1px solid var(--accent-border)",
                   borderRadius: 14,
-                  background: "rgba(200,255,87,0.04)",
+                  background: "var(--accent-soft)",
                   padding: "28px 24px",
                 }}
               >
-                <Icon size={20} color="#c8ff57" style={{ marginBottom: 14 }} />
+                <Icon size={20} color="var(--primary)" style={{ marginBottom: 14 }} />
                 <h3
                   style={{
                     fontWeight: 700,
@@ -628,7 +626,7 @@ function Landing() {
                 >
                   {title}
                 </h3>
-                <p style={{ color: "#666", fontSize: 13.5, lineHeight: 1.6 }}>
+                <p style={{ color: "var(--muted)", fontSize: 13.5, lineHeight: 1.6 }}>
                   {body}
                 </p>
               </div>
@@ -642,7 +640,7 @@ function Landing() {
         style={{
           padding: "100px 24px",
           textAlign: "center",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
+          borderTop: "1px solid var(--hairline)",
         }}
       >
         <div className="mx-auto max-w-2xl">
@@ -658,7 +656,7 @@ function Landing() {
           </h2>
           <p
             style={{
-              color: "#666",
+              color: "var(--muted)",
               fontSize: 16,
               lineHeight: 1.65,
               marginBottom: 40,
@@ -670,8 +668,8 @@ function Landing() {
             <Link
               to="/signup"
               style={{
-                background: "#c8ff57",
-                color: "#000",
+                background: "var(--primary)",
+                color: "var(--canvas)",
                 fontWeight: 700,
                 fontSize: 15,
                 padding: "14px 32px",
@@ -683,13 +681,12 @@ function Landing() {
                   "background 140ms, box-shadow 140ms, transform 140ms",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#a8e040";
-                e.currentTarget.style.boxShadow =
-                  "0 0 36px rgba(200,255,87,0.4)";
+                e.currentTarget.style.background = "var(--primary-active)";
+                e.currentTarget.style.boxShadow = "0 0 36px var(--accent-glow)";
                 e.currentTarget.style.transform = "translateY(-2px)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#c8ff57";
+                e.currentTarget.style.background = "var(--primary)";
                 e.currentTarget.style.boxShadow = "none";
                 e.currentTarget.style.transform = "translateY(0)";
               }}
@@ -699,7 +696,7 @@ function Landing() {
             <Link
               to="/login"
               style={{
-                color: "#999",
+                color: "var(--ink-soft)",
                 fontSize: 15,
                 fontWeight: 500,
                 display: "flex",
@@ -709,10 +706,10 @@ function Landing() {
                 transition: "color 140ms",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#f5f5f5";
+                e.currentTarget.style.color = "var(--on-dark)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#999";
+                e.currentTarget.style.color = "var(--ink-soft)";
               }}
             >
               I already have an account <ChevronRight size={15} />
@@ -724,7 +721,7 @@ function Landing() {
       {/* ── FOOTER ──────────────────────────────────────────── */}
       <footer
         style={{
-          borderTop: "1px solid rgba(255,255,255,0.06)",
+          borderTop: "1px solid var(--hairline)",
           padding: "32px 24px",
           display: "flex",
           alignItems: "center",
@@ -741,13 +738,13 @@ function Landing() {
               width: 26,
               height: 26,
               borderRadius: 6,
-              background: "#c8ff57",
+              background: "var(--primary)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Zap size={13} color="#000" strokeWidth={2.5} />
+            <Zap size={13} color="var(--canvas)" strokeWidth={2.5} />
           </div>
           <span
             style={{ fontWeight: 700, fontSize: 14, letterSpacing: "-0.02em" }}
@@ -755,21 +752,21 @@ function Landing() {
               LoreHub
           </span>
         </div>
-        <p style={{ color: "#444", fontSize: 13 }}>
+        <p style={{ color: "var(--muted-soft)", fontSize: 13 }}>
           LoreHub — your data stays yours.
         </p>
         <div className="flex items-center gap-4">
           <Link
             to="/login"
-            style={{ color: "#555", fontSize: 13, transition: "color 140ms" }}
-            onMouseEnter={(e) => (e.target.style.color = "#999")}
-            onMouseLeave={(e) => (e.target.style.color = "#555")}
+            style={{ color: "var(--ink-muted)", fontSize: 13, transition: "color 140ms" }}
+            onMouseEnter={(e) => (e.target.style.color = "var(--ink-soft)")}
+            onMouseLeave={(e) => (e.target.style.color = "var(--ink-muted)")}
           >
             Sign in
           </Link>
           <Link
             to="/signup"
-            style={{ color: "#c8ff57", fontSize: 13, fontWeight: 600 }}
+            style={{ color: "var(--primary)", fontSize: 13, fontWeight: 600 }}
           >
             Get started
           </Link>

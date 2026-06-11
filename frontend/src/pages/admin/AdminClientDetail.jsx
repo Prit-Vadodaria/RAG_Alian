@@ -75,7 +75,7 @@ function AdminClientDetail() {
   }
 
   if (error) {
-    return <div className="surface-page border border-[rgba(184,78,78,0.22)] p-6 text-sm text-[#f1c0c0]">{error}</div>;
+    return <div className="surface-page border border-[color:var(--error)]/30 p-6 text-sm text-[color:var(--error)]">{error}</div>;
   }
 
   if (!data) {
@@ -97,13 +97,13 @@ function AdminClientDetail() {
         <h1 className="mt-3 text-3xl font-semibold text-[color:var(--on-dark)]">{data.user.name}</h1>
         <p className="mt-2 text-sm text-[color:var(--on-dark-soft)]">{data.user.email}</p>
         <div className="mt-4 flex flex-wrap gap-2 text-xs text-[color:var(--on-dark-soft)]">
-          <span className="rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-3 py-1">
+          <span className="rounded-full border border-[var(--hairline)] bg-[color:var(--surface-2)] px-3 py-1">
             Status: <span className="font-semibold text-[color:var(--on-dark)]">{quota.status || "active"}</span>
           </span>
-          <span className="rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-3 py-1">
+          <span className="rounded-full border border-[var(--hairline)] bg-[color:var(--surface-2)] px-3 py-1">
             Limit: <span className="font-semibold text-[color:var(--on-dark)]">{Number(quota.dailyLimit || 0).toLocaleString()}</span>
           </span>
-          <span className="rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-3 py-1">
+          <span className="rounded-full border border-[var(--hairline)] bg-[color:var(--surface-2)] px-3 py-1">
             Reset: <span className="font-semibold text-[color:var(--on-dark)]">{resetLabel}</span>
           </span>
         </div>
@@ -128,7 +128,7 @@ function AdminClientDetail() {
             ) : (
               <ul className="mt-3 space-y-2 text-sm text-[color:var(--on-dark-soft)]">
                 {data.contexts.map((context) => (
-                  <li key={context.id} className="rounded-2xl border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] px-3 py-2">
+                  <li key={context.id} className="rounded-2xl border border-[var(--hairline)] bg-[color:var(--surface-1)] px-3 py-2">
                     <p className="font-medium text-[color:var(--on-dark)]">{context.name || context.id}</p>
                     <p className="text-xs text-[color:var(--on-dark-soft)]">{context.id}</p>
                   </li>
@@ -143,7 +143,7 @@ function AdminClientDetail() {
             ) : (
               <ul className="mt-3 space-y-2 text-sm text-[color:var(--on-dark-soft)]">
                 {data.chatbots.map((chatbot) => (
-                  <li key={chatbot.id} className="rounded-2xl border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] px-3 py-2">
+                  <li key={chatbot.id} className="rounded-2xl border border-[var(--hairline)] bg-[color:var(--surface-1)] px-3 py-2">
                     <p className="font-medium text-[color:var(--on-dark)]">{chatbot.name}</p>
                     <p className="text-xs text-[color:var(--on-dark-soft)]">{chatbot.id}</p>
                   </li>

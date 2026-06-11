@@ -91,13 +91,13 @@ function AiConfig() {
       </header>
 
       {loadError ? (
-        <div className="surface-page border border-[rgba(184,78,78,0.22)] p-4 text-sm text-[#f1c0c0]">
+        <div className="surface-page border border-[color:var(--error)]/30 p-4 text-sm text-[color:var(--error)]">
           {loadError}
         </div>
       ) : null}
 
       {!hasKey ? (
-        <div className="surface-page border border-[rgba(184,78,78,0.22)] bg-[rgba(184,78,78,0.08)] p-4 text-sm text-[#f1c0c0]">
+        <div className="surface-page border border-[color:var(--error)]/30 bg-[color:var(--error)]/10 p-4 text-sm text-[color:var(--error)]">
           No API key configured yet. Queries will fail until you add a valid Google Gemini API key.
         </div>
       ) : null}

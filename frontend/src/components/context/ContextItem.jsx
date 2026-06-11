@@ -42,7 +42,7 @@ export default function ContextItem({ context }) {
         </div>
       </div>
       {error && (
-        <div className="mt-3 rounded-xl border border-[rgba(184,78,78,0.2)] bg-[rgba(184,78,78,0.1)] px-3 py-2 text-sm text-[color:var(--error)]">
+        <div className="mt-3 rounded-xl border border-[color:var(--error)]/30 bg-[color:var(--error)]/10 px-3 py-2 text-sm text-[color:var(--error)]">
           {error}
         </div>
       )}

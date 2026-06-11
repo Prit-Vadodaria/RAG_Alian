@@ -326,7 +326,7 @@ function Chat() {
           <button
             type="button"
             onClick={handleOpenPromptSettings}
-            className="group surface-page w-full p-4 text-left transition hover:border-[rgba(201,119,92,0.28)]"
+            className="group surface-page w-full p-4 text-left transition hover:border-[color:var(--primary)]/30"
           >
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-kicker group-hover:text-[color:var(--primary)]">

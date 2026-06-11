@@ -15,9 +15,9 @@ export default function ToastContainer() {
   if (!toastMessage) return null;
 
   const variantStyles = {
-    info: "border-[rgba(200,255,87,0.24)] bg-[rgba(200,255,87,0.08)] text-[color:var(--ink)]",
-    success: "border-[rgba(200,255,87,0.24)] bg-[rgba(200,255,87,0.08)] text-[color:var(--ink)]",
-    error: "border-[rgba(248,113,113,0.24)] bg-[rgba(248,113,113,0.10)] text-[color:var(--ink)]",
+    info: "border-[color:var(--accent-border)] bg-[color:var(--accent-soft)] text-[color:var(--ink)]",
+    success: "border-[color:var(--accent-border)] bg-[color:var(--accent-soft)] text-[color:var(--ink)]",
+    error: "border-[color:var(--error)]/30 bg-[color:var(--error)]/10 text-[color:var(--ink)]",
   };
 
   return (

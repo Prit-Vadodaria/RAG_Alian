@@ -49,7 +49,7 @@ function Chatbots() {
   const [welcomeMessage, setWelcomeMessage] = useState("");
   const [allowedDomains, setAllowedDomains] = useState("");
   const [primaryContextId, setPrimaryContextId] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("#0099ff");
+  const [primaryColor, setPrimaryColor] = useState("var(--primary)");
   const [isChatbotsLoading, setIsChatbotsLoading] = useState(false);
   const [isChatbotSaving, setIsChatbotSaving] = useState(false);
   const [chatbotError, setChatbotError] = useState("");
@@ -321,7 +321,7 @@ function Chatbots() {
               <input
                 value={primaryColor}
                 onChange={(event) => setPrimaryColor(event.target.value)}
-                placeholder="#0099ff"
+                placeholder="var(--primary)"
                 className="field w-full"
                 disabled={isChatbotSaving}
               />

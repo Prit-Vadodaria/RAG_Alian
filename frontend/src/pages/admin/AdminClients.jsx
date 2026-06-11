@@ -54,7 +54,7 @@ function AdminClients() {
         <h1 className="mt-3 text-3xl font-semibold text-[color:var(--on-dark)]">Clients</h1>
       </header>
       {loading ? <div className="surface-page p-4 text-sm text-[color:var(--on-dark-soft)]">Loading clients...</div> : null}
-      {error ? <div className="surface-page border border-[rgba(184,78,78,0.22)] p-4 text-sm text-[#f1c0c0]">{error}</div> : null}
+      {error ? <div className="surface-page border border-[color:var(--error)]/30 p-4 text-sm text-[color:var(--error)]">{error}</div> : null}
       <div className="surface-page overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
@@ -72,7 +72,7 @@ function AdminClients() {
             </thead>
             <tbody>
               {clients.map((client) => (
-                <tr key={client.id} className="border-t border-[rgba(255,255,255,0.08)]">
+                <tr key={client.id} className="border-t border-[var(--hairline)]">
                   <td className="px-4 py-3">
                     <Link className="font-semibold text-[color:var(--on-dark)]" to={`/admin/clients/${client.id}`}>
                       {client.name}
@@ -80,7 +80,7 @@ function AdminClients() {
                   </td>
                   <td className="px-4 py-3 text-[color:var(--on-dark-soft)]">{client.email}</td>
                   <td className="px-4 py-3">
-                    <span className={`token-pill text-[10px] uppercase tracking-[0.22em] ${client.status === "active" ? "bg-[rgba(79,157,103,0.14)] text-[#c8e6d1]" : "bg-[rgba(184,78,78,0.14)] text-[#f1c0c0]"}`}>
+                    <span className={`token-pill text-[10px] uppercase tracking-[0.22em] ${client.status === "active" ? "bg-[color:var(--success)]/10 text-[color:var(--success)]" : "bg-[color:var(--error)]/10 text-[color:var(--error)]"}`}>
                       {client.status}
                     </span>
                   </td>

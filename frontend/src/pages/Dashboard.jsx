@@ -43,15 +43,15 @@ const formatQuotaSource = (source) => {
 const statusTone = (status) => {
   const normalized = String(status || "active").toLowerCase();
   if (normalized === "cooldown") {
-    return "border-[rgba(184,78,78,0.22)] bg-[rgba(184,78,78,0.14)] text-[#f1c0c0]";
+    return "border-[color:var(--error)]/30 bg-[color:var(--error)]/10 text-[color:var(--error)]";
   }
   if (normalized === "limited") {
-    return "border-[rgba(184,132,45,0.22)] bg-[rgba(184,132,45,0.14)] text-[#efd6a8]";
+    return "border-[color:var(--warning)]/30 bg-[color:var(--warning)]/10 text-[color:var(--warning)]";
   }
   if (normalized === "suspended") {
-    return "border-[rgba(160,153,150,0.22)] bg-[rgba(160,153,150,0.12)] text-[color:var(--on-dark-soft)]";
+    return "border-[color:var(--muted)]/30 bg-[color:var(--surface-2)] text-[color:var(--on-dark-soft)]";
   }
-  return "border-[rgba(79,157,103,0.22)] bg-[rgba(79,157,103,0.14)] text-[#c8e6d1]";
+  return "border-[color:var(--success)]/30 bg-[color:var(--success)]/10 text-[color:var(--success)]";
 };
 
 function DashboardSkeleton() {
@@ -184,7 +184,7 @@ function Dashboard() {
       </header>
 
       {error ? (
-        <div className="surface-page border-[rgba(184,78,78,0.22)] bg-[rgba(184,78,78,0.08)] p-4 text-sm text-[#f1c0c0]">
+        <div className="surface-page border-[color:var(--error)]/30 bg-[color:var(--error)]/10 p-4 text-sm text-[color:var(--error)]">
           Unable to load dashboard data: {error}
         </div>
       ) : null}

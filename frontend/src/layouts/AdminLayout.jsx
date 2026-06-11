@@ -15,9 +15,9 @@ function AdminLayout() {
   return (
     <div className="app-shell">
       <div className="relative flex h-full overflow-hidden">
-        <aside className="flex w-80 flex-col border-r border-[rgba(255,255,255,0.08)] bg-[color:var(--surface-dark)] p-4 text-[color:var(--on-dark)]">
-          <div className="flex items-center gap-3 rounded-3xl border border-[rgba(255,255,255,0.08)] bg-[color:var(--surface-dark-soft)] p-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-3xl bg-[rgba(200,255,87,0.12)] text-[color:var(--primary)]">
+        <aside className="flex w-80 flex-col border-r border-[var(--hairline)] bg-[color:var(--surface-dark)] p-4 text-[color:var(--on-dark)]">
+          <div className="flex items-center gap-3 rounded-3xl border border-[var(--hairline)] bg-[color:var(--surface-dark-soft)] p-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-3xl bg-[color:var(--accent-soft-strong)] text-[color:var(--primary)]">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
