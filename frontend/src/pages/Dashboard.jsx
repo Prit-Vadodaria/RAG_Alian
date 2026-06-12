@@ -4,8 +4,7 @@ import {
   Bot,
   Globe,
   Shield,
-  TrendingDown,
-  Zap,
+  Search,
   CircleAlert,
   CircleCheckBig,
   AlertTriangle,
@@ -63,7 +62,7 @@ function DashboardSkeleton() {
         <div className="mt-3 h-4 w-80 max-w-full rounded bg-white/10" />
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, index) => (
+        {Array.from({ length: 8 }).map((_, index) => (
           <div key={index} className="surface-page animate-pulse p-5">
             <div className="h-3 w-20 rounded bg-white/10" />
             <div className="mt-4 h-8 w-28 rounded bg-white/10" />
@@ -203,11 +202,11 @@ function Dashboard() {
           sublabel="Configured assistants"
         />
         <OverviewCard
-          title="Today Tokens"
-          value={formatNumber(resolvedSummary.todayTokensUsed)}
-          icon={Zap}
-          sublabel={`${formatNumber(resolvedSummary.todayRequests)} requests today`}
-          colorClass="text-[color:var(--warning)]"
+          title="Queries Today"
+          value={formatNumber(resolvedSummary.queriesToday ?? resolvedSummary.todayRequests)}
+          icon={Search}
+          sublabel="Total queries fired today"
+          colorClass="text-[color:var(--primary)]"
         />
         <OverviewCard
           title="Daily Limit"
@@ -216,18 +215,18 @@ function Dashboard() {
           sublabel={`${formatResetLabel(resolvedSummary.cooldownDurationMinutes)} · ${formatQuotaSource(hasGenerationConfig ? "override" : "default")}`}
         />
         <OverviewCard
-          title="Remaining"
-          value={formatNumber(resolvedSummary.tokensRemaining)}
-          icon={TrendingDown}
-          sublabel="Before cooldown starts"
-          colorClass="text-[color:var(--success)]"
-        />
-        <OverviewCard
           title="Quota State"
           value={warningLabel}
           icon={Activity}
           sublabel="Matches the enforced quota state"
           colorClass="text-[color:var(--primary)]"
+        />
+        <OverviewCard
+          title="All-Time Queries"
+          value={formatNumber(resolvedSummary.queriesAllTime ?? resolvedSummary.allTimeRequests)}
+          icon={Search}
+          sublabel="Total queries fired so far"
+          colorClass="text-[color:var(--success)]"
         />
       </div>
 

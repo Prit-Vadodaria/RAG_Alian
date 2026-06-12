@@ -123,7 +123,7 @@ function AdminChatbots() {
 
       <div className="surface-page overflow-hidden p-0">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
+          <table className="min-w-full text-center text-sm">
             <thead className="bg-[color:var(--surface-dark-soft)] text-[color:var(--on-dark-soft)]">
               <tr>
                 {[
@@ -136,7 +136,7 @@ function AdminChatbots() {
                   ["last_accessed_at", "Last Accessed"],
                 ].map(([key, label]) => (
                   <th key={key} className="px-4 py-3">
-                    <button type="button" onClick={() => toggleSort(key)} className="flex items-center gap-1 font-semibold">
+                    <button type="button" onClick={() => toggleSort(key)} className="mx-auto flex items-center gap-1 font-semibold">
                       {label}
                       {query.sortBy === key ? (query.sortDir === "asc" ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />) : null}
                     </button>
@@ -150,20 +150,20 @@ function AdminChatbots() {
                   <td className="px-4 py-3 font-medium text-[color:var(--on-dark)]">{item.id}</td>
                   <td className="px-4 py-3 text-[color:var(--on-dark-soft)]">{item.name}</td>
                   <td className="px-4 py-3 text-[color:var(--on-dark-soft)]">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col items-center">
                       <span>{item.client_name || "Unknown"}</span>
                       <span className="text-xs text-[color:var(--on-dark-soft)]">{item.client_id || "—"}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-[color:var(--on-dark-soft)]">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col items-center">
                       <span>{item.primary_context_id || "—"}</span>
                       <span className="text-xs text-[color:var(--on-dark-soft)]">{(item.context_ids || []).join(", ") || "—"}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className="token-pill admin-status-badge border"
+                      className="token-pill admin-status-badge border mx-auto"
                       data-status={item.deleted_at ? "deleted" : item.is_active ? "active" : "disabled"}
                     >
                       {item.deleted_at ? "Deleted" : item.is_active ? "Active" : "Disabled"}

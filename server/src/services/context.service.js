@@ -158,7 +158,19 @@ function _mapEntry(entry) {
     ? entry.client_id === null || entry.client_id === undefined || String(entry.client_id).trim() === ""
       ? null
       : String(entry.client_id).trim()
-    : String(DEFAULT_CLIENT_ID || "").trim() || null;
+      : String(DEFAULT_CLIENT_ID || "").trim() || null;
+  let createdAt = entry.created_at || null;
+  if (!createdAt) {
+    try {
+      const metadataPath = _metadataPath(entry.id);
+      if (fs.existsSync(metadataPath)) {
+        const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+        createdAt = metadata?.created_at || null;
+      }
+    } catch {
+      createdAt = null;
+    }
+  }
   return {
     id: entry.id,
     name: entry.name || entry.id,
@@ -169,7 +181,7 @@ function _mapEntry(entry) {
     path: entry.path || "",
     isDefault: Boolean(entry.is_default),
     isDeletable: entry.is_deletable !== false,
-    created_at: entry.created_at || null,
+    created_at: createdAt,
     last_accessed_at: entry.last_accessed_at || null,
     chunking: _normalizeChunkingConfig(entry.chunking, DEFAULT_CHUNKING),
     total_urls: Number(entry.total_urls || 0),

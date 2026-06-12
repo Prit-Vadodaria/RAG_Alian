@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Activity, Bot, Globe, Shield, Users } from "lucide-react";
+import { Bot, Globe, Search, Shield, Users } from "lucide-react";
 import { getStats } from "../../services/admin";
 
 const Card = ({ title, value, icon: Icon, sublabel }) => (
@@ -54,11 +54,11 @@ function AdminDashboard() {
       {error ? <div className="surface-page border border-[color:var(--error)]/30 p-4 text-sm text-[color:var(--error)]">{error}</div> : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card title="Total Clients" value={stats?.totalClients ?? 0} icon={Users} sublabel="Registered client accounts" />
-        <Card title="Active Clients" value={stats?.activeClients ?? 0} icon={Shield} sublabel="Enabled accounts" />
+        <Card title="Disabled Clients" value={stats?.disabledClients ?? 0} icon={Shield} sublabel="Disabled accounts" />
         <Card title="Contexts" value={stats?.totalContexts ?? 0} icon={Globe} sublabel="Website knowledge bases" />
         <Card title="Chatbots" value={stats?.totalChatbots ?? 0} icon={Bot} sublabel="Public widget deployments" />
-        <Card title="Tokens Today" value={stats?.totalTokensToday ?? 0} icon={Activity} sublabel="All active clients" />
-        <Card title="All-Time Tokens" value={stats?.totalTokensAllTime ?? 0} icon={Activity} sublabel="Historical usage" />
+        <Card title="Queries Today" value={stats?.totalQueriesToday ?? 0} icon={Search} sublabel="Queries fired today" />
+        <Card title="All-Time Queries" value={stats?.totalQueriesAllTime ?? 0} icon={Search} sublabel="Queries fired so far" />
       </div>
     </div>
   );

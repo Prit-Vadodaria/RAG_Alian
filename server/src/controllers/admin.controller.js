@@ -13,11 +13,22 @@ const getStats = async (req, res, next) => {
 const listClients = async (req, res, next) => {
   try {
     const filter = String(req.query?.filter || "").trim().toLowerCase();
-    const clients =
+    const result =
       filter === "unconfigured"
-        ? adminService.listUnconfiguredClients()
-        : adminService.listClients();
-    return res.json(successResponse(clients));
+        ? {
+            items: adminService.listUnconfiguredClients(),
+            page: 1,
+            limit: 25,
+            totalItems: 0,
+            totalPages: 1,
+          }
+        : adminService.listClients({
+            search: req.query?.search,
+            status: req.query?.status,
+            page: req.query?.page,
+            limit: req.query?.limit,
+          });
+    return res.json(successResponse(result));
   } catch (error) {
     return next(error);
   }

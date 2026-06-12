@@ -1,3 +1,4 @@
+const fs = require("fs");
 const { successResponse, errorResponse } = require("../utils/apiResponse");
 const chatbotService = require("../services/chatbot.service");
 const contextService = require("../services/context.service");
@@ -6,6 +7,41 @@ const clientConfigService = require("../services/client-config.service");
 const adminService = require("../services/admin.service");
 const tokenService = require("../services/token.service");
 const { DEFAULT_CLIENT_ID } = require("../config/env");
+
+function _sumDailyRequests(state, clientId = null) {
+  const normalizedClientId = clientId ? String(clientId || "").trim() : null;
+  return Object.values(state?.days || {}).reduce((total, entry) => {
+    if (!entry || typeof entry !== "object") {
+      return total;
+    }
+    if (Object.prototype.hasOwnProperty.call(entry, "client_id")) {
+      if (normalizedClientId && String(entry?.client_id || "").trim() !== normalizedClientId) {
+        return total;
+      }
+      return total + Number(entry?.total_requests || 0);
+    }
+    return (
+      total +
+      Object.values(entry).reduce((nestedTotal, nestedEntry) => {
+        if (normalizedClientId && String(nestedEntry?.client_id || "").trim() !== normalizedClientId) {
+          return nestedTotal;
+        }
+        return nestedTotal + Number(nestedEntry?.total_requests || 0);
+      }, 0)
+    );
+  }, 0);
+}
+
+function _readDailyUsageState() {
+  try {
+    if (!fs.existsSync(tokenService.DAILY_USAGE_PATH)) {
+      return { version: 1, days: {} };
+    }
+    return JSON.parse(fs.readFileSync(tokenService.DAILY_USAGE_PATH, "utf8"));
+  } catch {
+    return { version: 1, days: {} };
+  }
+}
 
 function _resolveClientId(req) {
   if (req.user && Object.prototype.hasOwnProperty.call(req.user, "clientId")) {
@@ -26,6 +62,7 @@ const getDashboardSummary = async (req, res, next) => {
     const genConfig = clientConfigService.getPublicClientConfig(clientId);
     const contexts = contextService.listContexts(clientId);
     const chatbots = chatbotService.listChatbots(clientId);
+    const dailyUsage = _readDailyUsageState();
 
     return res.json(
       successResponse({
@@ -34,6 +71,9 @@ const getDashboardSummary = async (req, res, next) => {
         chatbotsCreated: chatbots.length,
         todayTokensUsed: quota.tokensUsed,
         todayRequests: tokenService.getDailyUsage(clientId).totalRequests,
+        queriesToday: tokenService.getDailyUsage(clientId).totalRequests,
+        queriesAllTime: _sumDailyRequests(dailyUsage, clientId),
+        allTimeRequests: _sumDailyRequests(dailyUsage, clientId),
         dailyTokenLimit: genConfig?.dailyTokenLimit || quota.dailyLimit,
         tokensRemaining: quota.tokensRemaining,
         cooldownDurationMinutes: Number(config?.quotas?.default_cooldown_minutes || quota.cooldownDurationMinutes || 0),

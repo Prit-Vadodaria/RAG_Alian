@@ -106,6 +106,12 @@ function AdminClientDetail() {
           <span className="rounded-full border border-[var(--hairline)] bg-[color:var(--surface-2)] px-3 py-1">
             Reset: <span className="font-semibold text-[color:var(--on-dark)]">{resetLabel}</span>
           </span>
+          <span className="rounded-full border border-[var(--hairline)] bg-[color:var(--surface-2)] px-3 py-1">
+            Queries Today: <span className="font-semibold text-[color:var(--on-dark)]">{Number(data.queriesUsedToday || 0).toLocaleString()}</span>
+          </span>
+          <span className="rounded-full border border-[var(--hairline)] bg-[color:var(--surface-2)] px-3 py-1">
+            Queries Total: <span className="font-semibold text-[color:var(--on-dark)]">{Number(data.queriesUsedAllTime || 0).toLocaleString()}</span>
+          </span>
         </div>
       </header>
       <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
@@ -119,6 +125,9 @@ function AdminClientDetail() {
             </div>
             <p className="mt-2 text-sm text-[color:var(--on-dark-soft)]">
               Today: {Number(quota.tokensUsed || 0).toLocaleString()} tokens · Remaining: {Number(quota.tokensRemaining || 0).toLocaleString()}
+            </p>
+            <p className="mt-2 text-sm text-[color:var(--on-dark-soft)]">
+              Queries today: {Number(data.queriesUsedToday || 0).toLocaleString()} · All-time queries: {Number(data.queriesUsedAllTime || 0).toLocaleString()}
             </p>
           </div>
           <div className="surface-page p-5">

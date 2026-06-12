@@ -11,7 +11,8 @@ const unwrap = (response) => response.data?.data ?? response.data;
 
 export const getStats = async () => unwrap(await client.get("/admin/stats"));
 
-export const listClients = async () => unwrap(await client.get("/admin/clients"));
+export const listClients = async (params = {}) =>
+  unwrap(await client.get("/admin/clients", { params }));
 
 export const getClient = async (clientId) =>
   unwrap(await client.get(`/admin/clients/${encodeURIComponent(clientId)}`));

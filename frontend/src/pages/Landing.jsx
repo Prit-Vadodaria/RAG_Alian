@@ -32,18 +32,9 @@ function Landing() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[color:var(--canvas)] text-[color:var(--on-dark)]" style={{ fontFamily: "var(--font-body)" }}>
+    <div className="landing-shell">
       {/* ── NAV ─────────────────────────────────────────────── */}
-      <header
-        style={{
-          borderBottom: "1px solid var(--hairline)",
-          background: "var(--surface-dark-overlay)",
-          backdropFilter: "blur(16px)",
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
-        }}
-      >
+      <header className="landing-header">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
             <div
