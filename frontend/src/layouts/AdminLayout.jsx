@@ -1,16 +1,32 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Settings, LogOut, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Users, Settings, LogOut, Sparkles, ChevronUp, ChevronDown } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
 function AdminLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const [configOpen, setConfigOpen] = useState(location.pathname.startsWith("/admin/config"));
+
+  useEffect(() => {
+    if (location.pathname.startsWith("/admin/config")) {
+      setConfigOpen(true);
+    }
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
     navigate("/login", { replace: true });
   };
+
+  const subNavClass = ({ isActive }) =>
+    `block rounded-xl px-3 py-2 text-xs transition ${
+      isActive
+        ? "bg-[color:var(--surface-dark-elevated)] text-[color:var(--on-dark)]"
+        : "text-[color:var(--on-dark-soft)] hover:text-[color:var(--on-dark)]"
+    }`;
 
   return (
     <div className="app-shell">
@@ -35,10 +51,47 @@ function AdminLayout() {
               <Users className="h-4 w-4" />
               Clients
             </NavLink>
-            <NavLink to="/admin/config" className={({ isActive }) => `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm ${isActive ? "bg-[color:var(--surface-dark-elevated)] text-[color:var(--on-dark)]" : "text-[color:var(--on-dark-soft)]"}`}>
-              <Settings className="h-4 w-4" />
-              Config
-            </NavLink>
+            <button
+              type="button"
+              onClick={() => setConfigOpen((value) => !value)}
+              className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm ${
+                location.pathname.startsWith("/admin/config")
+                  ? "bg-[color:var(--surface-dark-elevated)] text-[color:var(--on-dark)]"
+                  : "text-[color:var(--on-dark-soft)]"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Settings className="h-4 w-4" />
+                Configuration
+              </div>
+              {configOpen ? (
+                <ChevronUp className="h-3 w-3 opacity-60" />
+              ) : (
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              )}
+            </button>
+            {configOpen ? (
+              <div className="ml-4 mt-1 flex flex-col gap-1 border-l border-[var(--hairline)] pl-3">
+                <NavLink to="/admin/config/registration" className={subNavClass}>
+                  Registration
+                </NavLink>
+                <NavLink to="/admin/config/embedding" className={subNavClass}>
+                  Embedding
+                </NavLink>
+                <NavLink to="/admin/config/reranking" className={subNavClass}>
+                  Reranking
+                </NavLink>
+                <NavLink to="/admin/config/retrieval" className={subNavClass}>
+                  Retrieval
+                </NavLink>
+                <NavLink to="/admin/config/ingestion" className={subNavClass}>
+                  Ingestion
+                </NavLink>
+                <NavLink to="/admin/config/prompt-seed" className={subNavClass}>
+                  Prompt Seed
+                </NavLink>
+              </div>
+            ) : null}
           </nav>
 
           <button type="button" onClick={handleLogout} className="button-secondary mt-auto justify-center">
