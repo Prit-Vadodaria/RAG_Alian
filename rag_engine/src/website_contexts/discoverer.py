@@ -47,6 +47,9 @@ class DiscoveryResult:
     max_pages: int
 
 
+SITEMAP_SEED_LIMIT = 5000
+
+
 def _setup_logger(logs_dir: Path | None):
     if logs_dir is None:
         return None, False
@@ -179,10 +182,20 @@ def discover_internal_urls(
         # parse_sitemap already recurses into nested/index sitemaps (issue #3).
         sitemap_urls = parse_sitemap(sitemap_url, timeout=request_timeout, visited=set())
         _log(logger, "info", "Sitemap returned %s raw URLs", len(sitemap_urls))
-        for norm in filter_english_urls(sitemap_urls):   # issue #4: filter here too
+        for index, norm in enumerate(filter_english_urls(sitemap_urls), start=1):   # issue #4: filter here too
             if pause_check is not None and pause_check():
                 stop_reason = "paused"
                 _log(logger, "warning", "Discovery paused while seeding sitemap urls")
+                break
+            if index > SITEMAP_SEED_LIMIT:
+                stop_reason = "sitemap_seed_limit_reached"
+                _log(
+                    logger,
+                    "warning",
+                    "Discovery stopped: sitemap seed limit=%s reached for %s",
+                    SITEMAP_SEED_LIMIT,
+                    root_url,
+                )
                 break
             parsed = urlparse(norm)
             if is_same_domain(parsed.netloc, root_netloc) and not is_asset_url(norm):

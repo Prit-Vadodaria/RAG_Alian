@@ -33,6 +33,80 @@
       .replace(/'/g, "&#39;");
   }
 
+  function renderMarkdown(value) {
+    const text = String(value || "").replace(/\r\n/g, "\n").trim();
+    if (!text) return "";
+
+    const formatInline = (input) => {
+      const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+      return String(input || "")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        .replace(linkPattern, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    };
+
+    const renderList = (lines, ordered = false) => {
+      const tag = ordered ? "ol" : "ul";
+      const items = lines
+        .map((line) => {
+          const cleaned = ordered
+            ? line.replace(/^\d+\.\s+/, "").trim()
+            : line.replace(/^[*-]\s+/, "").trim();
+          return `<li>${formatInline(cleaned)}</li>`;
+        })
+        .join("");
+      return `<${tag}>${items}</${tag}>`;
+    };
+
+    const renderBlock = (block) => {
+      const lines = block.split("\n");
+      const nonEmpty = lines.map((line) => line.trim()).filter(Boolean);
+      if (!nonEmpty.length) return "";
+
+      const isBullets = nonEmpty.every((line) => /^[*-]\s+/.test(line));
+      if (isBullets) {
+        return renderList(nonEmpty, false);
+      }
+
+      const isOrdered = nonEmpty.every((line) => /^\d+\.\s+/.test(line));
+      if (isOrdered) {
+        return renderList(nonEmpty, true);
+      }
+
+      return `<p>${formatInline(nonEmpty.join("<br>"))}</p>`;
+    };
+
+    const parts = [];
+    const segments = text.split(/```/);
+
+    for (let index = 0; index < segments.length; index += 1) {
+      const segment = segments[index];
+      if (index % 2 === 1) {
+        const lines = segment.split("\n");
+        if (lines.length > 1 && /^[a-zA-Z0-9_-]+\s*$/.test(lines[0].trim())) {
+          lines.shift();
+        }
+        const code = escapeHtml(lines.join("\n").replace(/^\n+|\n+$/g, ""));
+        parts.push(`<pre><code>${code}</code></pre>`);
+        continue;
+      }
+
+      const escaped = escapeHtml(segment);
+      const paragraphs = escaped
+        .split(/\n{2,}/)
+        .map((block) => block.trim())
+        .filter(Boolean)
+        .map(renderBlock)
+        .filter(Boolean)
+        .join("");
+      if (paragraphs) {
+        parts.push(paragraphs);
+      }
+    }
+
+    return parts.join("");
+  }
+
   function truncate(value, maxLength) {
     const text = String(value || "")
       .trim()
@@ -1325,7 +1399,7 @@
                   : messages
                       .map(
                         (message) =>
-                          `<div class="bubble ${message.role}">${escapeHtml(message.content)}</div>`,
+                        `<div class="bubble ${message.role}">${renderMarkdown(message.content)}</div>`,
                       )
                       .join("")
               }

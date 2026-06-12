@@ -1,6 +1,7 @@
 const { successResponse, errorResponse } = require("../utils/apiResponse");
 const clientConfigService = require("../services/client-config.service");
 const { DEFAULT_CLIENT_ID } = require("../config/env");
+const GOOGLE_API_KEY_PATTERN = /^[A-Za-z0-9._-]{10,}$/;
 
 function _getClientId(req) {
   return req.user?.clientId || req.user?.client_id || req.clientId || DEFAULT_CLIENT_ID;
@@ -33,7 +34,7 @@ const updateAiConfig = async (req, res, next) => {
     if (Object.prototype.hasOwnProperty.call(req.body || {}, "googleApiKey")) {
       const googleApiKey = String(req.body.googleApiKey || "").trim();
       if (googleApiKey && googleApiKey !== "***configured***") {
-        if (!/^[A-Za-z0-9_-]{10,}$/.test(googleApiKey)) {
+        if (!GOOGLE_API_KEY_PATTERN.test(googleApiKey)) {
           return res.status(400).json(errorResponse("'googleApiKey' is invalid."));
         }
         updates.googleApiKey = googleApiKey;

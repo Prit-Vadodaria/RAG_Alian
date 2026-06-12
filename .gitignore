@@ -46,9 +46,9 @@ venv/
 ENV/
 env/
 .venv
+.venv/
 env.bak/
 venv.bak/
-websites/
 
 # ============================================
 # Node.js
@@ -101,32 +101,23 @@ rag_engine/data/logs/
 rag_engine/data/indexes/
 .workspace/
 rag_engine/websites/
+rag_engine/websites/*
+!rag_engine/websites/.gitkeep
 rag_engine/context_registry.json
 rag_engine/prompt_settings.json
 .chroma/
 chroma/
+rag_engine/.venv/
+rag_engine/.venv/**
 *.db
 *.sqlite
 
 # ============================================
 # Local Development
 # ============================================
-.DS_Store
 *.log
 *.pot
 *.mo
-.env.local
-.env.*.local
-
-# ============================================
-# IDE Specific
-# ============================================
-.vscode/settings.json
-.vscode/extensions.json
-.idea/
-*.iml
-*.iws
-*.ipr
 
 # ============================================
 # Temporary Files

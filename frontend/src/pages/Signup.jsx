@@ -15,8 +15,6 @@ function Signup() {
   const [password, setPassword] = useState("");
   const [googleApiKey, setGoogleApiKey] = useState("");
   const [model, setModel] = useState("gemini-2.5-flash");
-  const [dailyTokenLimit, setDailyTokenLimit] = useState(50000);
-  const [timeoutSeconds, setTimeoutSeconds] = useState(60);
   const [showKey, setShowKey] = useState(false);
   const [modelOptions, setModelOptions] = useState([]);
   const [modelLookupLoading, setModelLookupLoading] = useState(false);
@@ -86,8 +84,6 @@ function Signup() {
       const result = await signup(name.trim(), email.trim(), password, {
         googleApiKey: googleApiKey.trim(),
         model,
-        dailyTokenLimit: Number(dailyTokenLimit),
-        timeoutSeconds: Number(timeoutSeconds),
       });
       navigate(result.user?.role === "admin" ? "/admin" : "/workspace", { replace: true });
     } catch {
@@ -168,31 +164,6 @@ function Signup() {
             <p className="text-xs text-[color:var(--error)]">{modelLookupError}</p>
           ) : null}
         </label>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block space-y-2">
-            <span className="text-sm text-[color:var(--on-dark-soft)]">Daily Token Limit</span>
-            <input
-              className="field w-full"
-              type="number"
-              min="1000"
-              value={dailyTokenLimit}
-              onChange={(e) => setDailyTokenLimit(e.target.value)}
-              required
-            />
-          </label>
-          <label className="block space-y-2">
-            <span className="text-sm text-[color:var(--on-dark-soft)]">Timeout Seconds</span>
-            <input
-              className="field w-full"
-              type="number"
-              min="10"
-              max="300"
-              value={timeoutSeconds}
-              onChange={(e) => setTimeoutSeconds(e.target.value)}
-              required
-            />
-          </label>
-        </div>
         {error ? <p className="text-sm text-[color:var(--error)]">{error}</p> : null}
         <button type="submit" className="button-primary w-full justify-center" disabled={isLoading}>
           {isLoading ? "Creating account..." : "Create account"}

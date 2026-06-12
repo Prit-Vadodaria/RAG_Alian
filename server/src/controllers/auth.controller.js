@@ -1,32 +1,25 @@
 const { successResponse, errorResponse } = require("../utils/apiResponse");
 const authService = require("../services/auth.service");
 const { REGISTRATION_ENABLED } = require("../config/env");
+const configService = require("../services/config.service");
 const clientConfigService = require("../services/client-config.service");
 const tokenService = require("../services/token.service");
+
+const GOOGLE_API_KEY_PATTERN = /^[A-Za-z0-9._-]{10,}$/;
 
 function _validateGenerationFields({
   googleApiKey,
   model,
-  dailyTokenLimit,
-  timeoutSeconds,
 }) {
   const errors = [];
   if (!googleApiKey) {
     errors.push("'googleApiKey' is required.");
-  } else if (!/^[A-Za-z0-9_-]{10,}$/.test(googleApiKey) || googleApiKey === "***configured***") {
+  } else if (!GOOGLE_API_KEY_PATTERN.test(googleApiKey) || googleApiKey === "***configured***") {
     errors.push("'googleApiKey' appears invalid.");
   }
 
   if (!String(model || "").trim()) {
     errors.push("'model' is required.");
-  }
-
-  if (!Number.isFinite(dailyTokenLimit) || !Number.isInteger(dailyTokenLimit) || dailyTokenLimit < 1000) {
-    errors.push("'dailyTokenLimit' must be an integer greater than or equal to 1000.");
-  }
-
-  if (!Number.isFinite(timeoutSeconds) || !Number.isInteger(timeoutSeconds) || timeoutSeconds < 10 || timeoutSeconds > 300) {
-    errors.push("'timeoutSeconds' must be an integer between 10 and 300.");
   }
 
   return errors;
@@ -68,7 +61,12 @@ const signup = async (req, res, next) => {
     const password = String(req.body?.password || "");
     const googleApiKey = String(req.body?.googleApiKey || "").trim();
     const model = String(req.body?.model || "").trim();
-    const dailyTokenLimit = Number(req.body?.dailyTokenLimit || 0);
+    const platformConfig = configService.getConfig();
+    const dailyTokenLimit = Number(
+      req.body?.dailyTokenLimit ||
+        platformConfig?.registration?.signup_default_token_limit ||
+        50000,
+    );
     const timeoutSeconds = Number(req.body?.timeoutSeconds || 60);
     const temperature = req.body?.temperature !== undefined ? Number(req.body.temperature) : undefined;
     const maxOutputTokens = req.body?.maxOutputTokens !== undefined ? Number(req.body.maxOutputTokens) : undefined;
@@ -82,12 +80,17 @@ const signup = async (req, res, next) => {
     const generationErrors = _validateGenerationFields({
       googleApiKey,
       model,
-      dailyTokenLimit,
-      timeoutSeconds,
     });
     if (generationErrors.length > 0) {
       return res.status(400).json(errorResponse(generationErrors.join(" ")));
     }
+
+    const normalizedDailyTokenLimit = Number.isInteger(dailyTokenLimit) && dailyTokenLimit >= 1000
+      ? dailyTokenLimit
+      : Number(platformConfig?.registration?.signup_default_token_limit || 50000);
+    const normalizedTimeoutSeconds = Number.isInteger(timeoutSeconds) && timeoutSeconds >= 10 && timeoutSeconds <= 300
+      ? timeoutSeconds
+      : 60;
 
     let user = null;
     try {
@@ -97,16 +100,16 @@ const signup = async (req, res, next) => {
         {
           googleApiKey,
           model,
-          timeoutSeconds,
+          timeoutSeconds: normalizedTimeoutSeconds,
           temperature,
           maxOutputTokens,
           maxRetries,
           retryBackoff,
-          dailyTokenLimit,
+          dailyTokenLimit: normalizedDailyTokenLimit,
         },
         { changedBy: user.id },
       );
-      tokenService.applyClientDailyLimit(user.client_id, dailyTokenLimit);
+      tokenService.applyClientDailyLimit(user.client_id, normalizedDailyTokenLimit);
     } catch (error) {
       if (user) {
         try {
