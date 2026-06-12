@@ -11,8 +11,8 @@ import {
 } from "lucide-react";
 
 import ConfirmDialog from "../components/ui/ConfirmDialog";
+import EditChatbotModal from "../components/chatbot/EditChatbotModal";
 import SectionCard from "../components/ui/SectionCard";
-import { usePromptSettingsStore } from "../store/promptSettingsStore";
 import { useContextStore } from "../store/contextStore";
 import {
   createChatbot,
@@ -21,6 +21,7 @@ import {
   enableChatbot,
   getChatbotEmbed,
   listChatbots,
+  updateChatbot,
 } from "../services/chatbots";
 
 function normalizeDomains(value) {
@@ -31,7 +32,6 @@ function normalizeDomains(value) {
 }
 
 function Chatbots() {
-  const { settings, loadSettings } = usePromptSettingsStore();
   const { contexts, fetchContexts, showToast, selectedContext } =
     useContextStore();
   const availableContexts = useMemo(
@@ -52,15 +52,16 @@ function Chatbots() {
   const [primaryColor, setPrimaryColor] = useState("#c8ff57");
   const [isChatbotsLoading, setIsChatbotsLoading] = useState(false);
   const [isChatbotSaving, setIsChatbotSaving] = useState(false);
+  const [isEditSaving, setIsEditSaving] = useState(false);
   const [chatbotError, setChatbotError] = useState("");
   const [confirmChatbot, setConfirmChatbot] = useState(null);
+  const [editingChatbot, setEditingChatbot] = useState(null);
   const [copiedSnippetId, setCopiedSnippetId] = useState("");
 
   useEffect(() => {
-    loadSettings();
     fetchContexts();
     refreshChatbots();
-  }, [fetchContexts, loadSettings]);
+  }, [fetchContexts]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -71,14 +72,22 @@ function Chatbots() {
   }, []);
 
   useEffect(() => {
-    if (
-      selectedContext &&
-      availableContexts.some((context) => context.id === selectedContext)
-    ) {
-      setPrimaryContextId(selectedContext);
-    } else {
-      setPrimaryContextId(availableContexts[0]?.id || "");
-    }
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      if (
+        selectedContext &&
+        availableContexts.some((context) => context.id === selectedContext)
+      ) {
+        setPrimaryContextId(selectedContext);
+      } else {
+        setPrimaryContextId(availableContexts[0]?.id || "");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [availableContexts, selectedContext]);
 
   async function refreshChatbots() {
@@ -115,16 +124,6 @@ function Chatbots() {
         theme_config: {
           primary: primaryColor,
         },
-        prompt_config: {
-          role: settings?.role || "",
-          tone: settings?.tone || "friendly",
-          answer_style: settings?.answer_style || "professional",
-          fallback_behavior: settings?.fallback_behavior || "helpful",
-          strict_grounding: settings?.strict_grounding ?? true,
-          allow_inference: settings?.allow_inference ?? true,
-          website_identity_mode: settings?.website_identity_mode ?? true,
-          constraints: settings?.constraints || [],
-        },
       });
       setChatbotName("");
       setWelcomeMessage("");
@@ -157,15 +156,33 @@ function Chatbots() {
     }
   };
 
+  const handleEditChatbot = (chatbot) => {
+    setEditingChatbot(chatbot);
+  };
+
+  const handleSaveEdit = async (chatbotId, payload) => {
+    setIsEditSaving(true);
+    try {
+      await updateChatbot(chatbotId, payload);
+      await refreshChatbots();
+      setEditingChatbot(null);
+      showToast("Chatbot updated.", "success");
+    } catch (error) {
+      showToast(`Failed to update chatbot: ${error.message}`, "error");
+    } finally {
+      setIsEditSaving(false);
+    }
+  };
+
   const handleDeleteChatbot = async () => {
     if (!confirmChatbot) return;
     try {
       await deleteChatbot(confirmChatbot.id);
       await refreshChatbots();
       setConfirmChatbot(null);
-      showToast("Chatbot disabled.", "success");
+      showToast("Chatbot deleted.", "success");
     } catch (error) {
-      showToast(`Failed to disable chatbot: ${error.message}`, "error");
+      showToast(`Failed to delete chatbot: ${error.message}`, "error");
     }
   };
 
@@ -242,6 +259,14 @@ function Chatbots() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleEditChatbot(chatbot)}
+                    className="button-secondary px-4 py-2"
+                  >
+                    <Cog className="h-4 w-4" />
+                    Edit
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleToggleChatbot(chatbot)}
@@ -376,6 +401,15 @@ function Chatbots() {
         loading={false}
         onConfirm={handleDeleteChatbot}
         onCancel={() => setConfirmChatbot(null)}
+      />
+
+      <EditChatbotModal
+        open={Boolean(editingChatbot)}
+        chatbot={editingChatbot}
+        contexts={availableContexts}
+        onClose={() => setEditingChatbot(null)}
+        onSave={handleSaveEdit}
+        saving={isEditSaving}
       />
     </div>
   );

@@ -58,7 +58,6 @@ const publicChat = async (req, res, next) => {
       namespace: chatbot.namespace,
       visitor_id: visitorId,
       origin,
-      prompt_settings: chatbot.prompt_config,
       clientId: chatbot.client_id || req.clientId || null,
     };
 

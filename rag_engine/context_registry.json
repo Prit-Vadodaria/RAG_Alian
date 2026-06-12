@@ -27,31 +27,6 @@
       "ingestion_pid": 12312,
       "current_url": "",
       "embedding_buffer_size": 0
-    },
-    {
-      "id": "minimalist-ae_f2289df9",
-      "name": "minimalist.ae",
-      "seed_url": "https://minimalist.ae/",
-      "client_id": "client_99ec654f",
-      "status": "discovering",
-      "path": "websites/minimalist-ae_f2289df9",
-      "is_default": false,
-      "is_deletable": true,
-      "chunking": {
-        "maxChunkTokens": 400,
-        "minChunkTokens": 95,
-        "chunkOverlapTokens": 70
-      },
-      "total_urls": 0,
-      "pending_urls": 0,
-      "processed_urls": 0,
-      "indexed_urls": 0,
-      "failed_urls": 0,
-      "current_batch": 0,
-      "total_batches": 0,
-      "last_completed_batch": 0,
-      "stop_reason": "",
-      "ingestion_pid": 13704
     }
   ]
 }
