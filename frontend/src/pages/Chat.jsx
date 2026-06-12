@@ -16,10 +16,7 @@ import LatencyBadge from "../components/metrics/LatencyBadge";
 import PromptSettingsModal from "../components/ui/PromptSettingsModal";
 import { createChatTitle } from "../utils/format";
 import { useContextStore } from "../store/contextStore";
-import {
-  DEFAULT_PROMPT_SETTINGS,
-  usePromptSettingsStore,
-} from "../store/promptSettingsStore";
+import { usePromptSettingsStore } from "../store/promptSettingsStore";
 
 const thinkingMessages = [
   "Searching knowledge base...",
@@ -234,7 +231,7 @@ function Chat() {
     setIsPromptSettingsSaving(true);
     try {
       await resetSettings();
-      showToast("Prompt settings reset to defaults.", "success");
+      showToast("Prompt settings reset to seed.", "success");
       setIsPromptSettingsOpen(false);
     } catch (error) {
       showToast(`Failed to reset prompt settings: ${error.message}`, "error");
@@ -346,10 +343,10 @@ function Chat() {
       <PromptSettingsModal
         open={isPromptSettingsOpen}
         settings={settings}
-        defaults={DEFAULT_PROMPT_SETTINGS}
         onClose={handleClosePromptSettings}
         onSave={handleSavePromptSettings}
         onReset={handleResetPromptSettings}
+        onValidationError={(message) => showToast(message, "error")}
         saving={isPromptSettingsSaving}
       />
     </div>

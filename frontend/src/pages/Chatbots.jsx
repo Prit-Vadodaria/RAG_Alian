@@ -32,14 +32,14 @@ function normalizeDomains(value) {
 
 function Chatbots() {
   const { settings, loadSettings } = usePromptSettingsStore();
-  const { contexts, fetchContexts, showToast, selectedContext } = useContextStore();
+  const { contexts, fetchContexts, showToast, selectedContext } =
+    useContextStore();
   const availableContexts = useMemo(
     () =>
-      contexts.filter(
-        (context) =>
-          ["ready", "partially_ready"].includes(
-            String(context.status || "").toLowerCase(),
-          ),
+      contexts.filter((context) =>
+        ["ready", "partially_ready"].includes(
+          String(context.status || "").toLowerCase(),
+        ),
       ),
     [contexts],
   );
@@ -49,7 +49,7 @@ function Chatbots() {
   const [welcomeMessage, setWelcomeMessage] = useState("");
   const [allowedDomains, setAllowedDomains] = useState("");
   const [primaryContextId, setPrimaryContextId] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("var(--primary)");
+  const [primaryColor, setPrimaryColor] = useState("#c8ff57");
   const [isChatbotsLoading, setIsChatbotsLoading] = useState(false);
   const [isChatbotSaving, setIsChatbotSaving] = useState(false);
   const [chatbotError, setChatbotError] = useState("");
@@ -116,14 +116,14 @@ function Chatbots() {
           primary: primaryColor,
         },
         prompt_config: {
-          role: settings.role || "",
-          tone: settings.tone || "friendly",
-          answer_style: settings.answer_style || "professional",
-          fallback_behavior: settings.fallback_behavior || "helpful",
-          strict_grounding: settings.strict_grounding ?? true,
-          allow_inference: settings.allow_inference ?? true,
-          website_identity_mode: settings.website_identity_mode ?? true,
-          constraints: settings.constraints || [],
+          role: settings?.role || "",
+          tone: settings?.tone || "friendly",
+          answer_style: settings?.answer_style || "professional",
+          fallback_behavior: settings?.fallback_behavior || "helpful",
+          strict_grounding: settings?.strict_grounding ?? true,
+          allow_inference: settings?.allow_inference ?? true,
+          website_identity_mode: settings?.website_identity_mode ?? true,
+          constraints: settings?.constraints || [],
         },
       });
       setChatbotName("");
@@ -148,7 +148,10 @@ function Chatbots() {
         await enableChatbot(chatbot.id);
       }
       await refreshChatbots();
-      showToast(`Chatbot ${chatbot.is_active ? "disabled" : "enabled"}.`, "success");
+      showToast(
+        `Chatbot ${chatbot.is_active ? "disabled" : "enabled"}.`,
+        "success",
+      );
     } catch (error) {
       showToast(`Failed to update chatbot: ${error.message}`, "error");
     }
@@ -209,7 +212,9 @@ function Chatbots() {
             )}
           </div>
           {chatbots.length === 0 && (
-            <p className="text-sm text-[color:var(--body)]">No chatbots created yet.</p>
+            <p className="text-sm text-[color:var(--body)]">
+              No chatbots created yet.
+            </p>
           )}
           {chatbots.map((chatbot) => (
             <div key={chatbot.id} className="surface-card p-4">
@@ -226,7 +231,9 @@ function Chatbots() {
                       <Check className="h-4 w-4 text-[color:var(--success)]" />
                     ) : null}
                   </div>
-                  <p className="mt-1 text-xs text-[color:var(--muted)]">{chatbot.id}</p>
+                  <p className="mt-1 text-xs text-[color:var(--muted)]">
+                    {chatbot.id}
+                  </p>
                   <p className="mt-1 text-xs text-[color:var(--primary-strong)]">
                     namespace: {chatbot.namespace}
                   </p>
@@ -317,7 +324,9 @@ function Chatbots() {
               disabled={isChatbotSaving}
             />
             <label className="block space-y-2 md:col-span-2">
-              <span className="text-sm text-[color:var(--body)]">Primary color</span>
+              <span className="text-sm text-[color:var(--body)]">
+                Primary color
+              </span>
               <input
                 value={primaryColor}
                 onChange={(event) => setPrimaryColor(event.target.value)}
@@ -326,7 +335,8 @@ function Chatbots() {
                 disabled={isChatbotSaving}
               />
               <p className="text-xs text-[color:var(--muted)]">
-                This single color is used only on important widget moments like the launcher, send button, focus state, and selected items.
+                This single color is used only on important widget moments like
+                the launcher, send button, focus state, and selected items.
               </p>
             </label>
           </div>
@@ -345,7 +355,9 @@ function Chatbots() {
               Create chatbot
             </button>
             {chatbotError && (
-              <p className="text-sm text-[color:var(--error)]">{chatbotError}</p>
+              <p className="text-sm text-[color:var(--error)]">
+                {chatbotError}
+              </p>
             )}
           </div>
         </div>

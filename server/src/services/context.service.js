@@ -5,6 +5,7 @@ const { spawn, spawnSync } = require("child_process");
 const { deleteChatbotsByContext } = require("./chatbot.service");
 const { DEFAULT_CLIENT_ID } = require("../config/env");
 const configService = require("./config.service");
+const promptSettingsService = require("./prompt-settings.service");
 
 const RAG_ENGINE_DIR = path.resolve(__dirname, "../../../rag_engine");
 const RAG_WEBSITES_DIR = path.join(RAG_ENGINE_DIR, "websites");
@@ -127,6 +128,17 @@ function _writeRegistry(data) {
   fs.writeFileSync(REGISTRY_PATH, JSON.stringify(data, null, 2), "utf8");
 }
 
+function _readJson(filePath, fallback = null) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return fallback;
+    }
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
 function _normalizeStatus(status) {
   const value = String(status || "").toLowerCase();
   if (value === "processing") return PROCESSING_BATCH;
@@ -177,6 +189,17 @@ function ensureWebsitesDir() {
 
 function _contextDir(contextId) {
   return path.join(RAG_WEBSITES_DIR, contextId);
+}
+
+function _resolveContextPath(contextId, fileName) {
+  const ctxDir = path.resolve(_contextDir(contextId));
+  const websitesRoot = path.resolve(RAG_WEBSITES_DIR);
+  if (ctxDir !== websitesRoot && !ctxDir.startsWith(`${websitesRoot}${path.sep}`)) {
+    const error = new Error("Unsafe context path");
+    error.status = 400;
+    throw error;
+  }
+  return path.join(ctxDir, fileName);
 }
 
 function _metadataPath(contextId) {
@@ -608,6 +631,46 @@ function deleteContext(contextId, clientId = null) {
   }
 }
 
+function getContextPromptSettings(contextId) {
+  const filePath = _resolveContextPath(contextId, "prompt_settings.json");
+  const settings = _readJson(filePath, null);
+  return settings && typeof settings === "object" ? settings : null;
+}
+
+function setContextPromptSettings(contextId, settings = {}) {
+  const entry = getContext(contextId, null);
+  if (!entry) {
+    const error = new Error("Context not found");
+    error.status = 404;
+    throw error;
+  }
+
+  const validation = promptSettingsService.validatePromptSettings(settings);
+  if (!validation.valid) {
+    const error = new Error(validation.error || "Invalid prompt settings.");
+    error.status = 400;
+    throw error;
+  }
+
+  const filePath = _resolveContextPath(contextId, "prompt_settings.json");
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), "utf8");
+  return settings;
+}
+
+function deleteContextPromptSettings(contextId) {
+  try {
+    const filePath = _resolveContextPath(contextId, "prompt_settings.json");
+    if (!fs.existsSync(filePath)) {
+      return false;
+    }
+    fs.unlinkSync(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 module.exports = {
   listContexts,
   getContext,
@@ -617,4 +680,7 @@ module.exports = {
   getContextDefaults,
   pauseContext,
   resumeContext,
+  getContextPromptSettings,
+  setContextPromptSettings,
+  deleteContextPromptSettings,
 };

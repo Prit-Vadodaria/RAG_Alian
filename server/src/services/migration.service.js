@@ -2,6 +2,7 @@ const authService = require("./auth.service");
 const clientConfigService = require("./client-config.service");
 const chatbotService = require("./chatbot.service");
 const contextService = require("./context.service");
+const promptSettingsService = require("./prompt-settings.service");
 const tokenService = require("./token.service");
 const { DEFAULT_CLIENT_ID } = require("../config/env");
 
@@ -28,6 +29,12 @@ function runStartupMigrations() {
   results.quotaSeeded = true;
 
   const clients = authService.listUsers().filter((user) => user.role === "client");
+  for (const user of clients) {
+    if (!promptSettingsService.clientPromptSettingsExist(user.client_id)) {
+      promptSettingsService.initClientPromptSettings(user.client_id);
+    }
+  }
+
   const unconfigured = clients.filter(
     (user) => !clientConfigService.clientConfigExists(user.client_id),
   );

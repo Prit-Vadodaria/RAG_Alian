@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createApiClient } from "../../services/http";
+import { useContextStore } from "../../store/contextStore";
+import { validatePromptSettings } from "../../utils/validatePromptSettings";
 
 const SERVER_BASE =
   import.meta.env.VITE_CONTEXT_API_URL ||
@@ -16,6 +18,13 @@ const updateNested = (current, section, key, value) => ({
   },
 });
 
+function normalizeConstraints(text) {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 function AdminConfig() {
   const [config, setConfig] = useState(null);
   const [baselineConfig, setBaselineConfig] = useState(null);
@@ -23,11 +32,23 @@ function AdminConfig() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [promptSeed, setPromptSeed] = useState(null);
+  const [baselinePromptSeed, setBaselinePromptSeed] = useState(null);
+  const [promptSeedLoading, setPromptSeedLoading] = useState(true);
+  const [promptSeedSaving, setPromptSeedSaving] = useState(false);
+  const [promptSeedError, setPromptSeedError] = useState("");
+  const [promptSeedNotice, setPromptSeedNotice] = useState("");
+  const showToast = useContextStore((state) => state.showToast);
 
-  const isDirty = useMemo(
+  const isConfigDirty = useMemo(
     () => JSON.stringify(config) !== JSON.stringify(baselineConfig),
     [config, baselineConfig],
   );
+  const isPromptSeedDirty = useMemo(
+    () => JSON.stringify(promptSeed) !== JSON.stringify(baselinePromptSeed),
+    [promptSeed, baselinePromptSeed],
+  );
+  const isDirty = isConfigDirty || isPromptSeedDirty;
 
   const loadConfig = async () => {
     setLoading(true);
@@ -43,23 +64,41 @@ function AdminConfig() {
     }
   };
 
+  const loadPromptSeed = async () => {
+    setPromptSeedLoading(true);
+    setPromptSeedError("");
+    setPromptSeedNotice("");
+    try {
+      const response = await client.get("/admin/prompt-settings");
+      const nextPromptSeed = response.data?.data || response.data;
+      setPromptSeed(nextPromptSeed);
+      setBaselinePromptSeed(nextPromptSeed);
+    } finally {
+      setPromptSeedLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadConfig().catch((err) => {
       setError(err.message || String(err));
       setLoading(false);
     });
+    loadPromptSeed().catch((err) => {
+      setPromptSeedError(err.message || String(err));
+      setPromptSeedLoading(false);
+    });
   }, []);
 
   useEffect(() => {
     const handleBeforeUnload = (event) => {
-      if (!isDirty || saving || loading) return;
+      if (!isDirty || saving || loading || promptSeedSaving || promptSeedLoading) return;
       event.preventDefault();
       event.returnValue = "";
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty, loading, saving]);
+  }, [isDirty, loading, promptSeedLoading, promptSeedSaving, saving]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -76,6 +115,43 @@ function AdminConfig() {
       setError(err.message || String(err));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSavePromptSeed = async () => {
+    const currentPromptSeed = promptSeed || {};
+    const role = String(currentPromptSeed.role || "").trim();
+    const constraints = normalizeConstraints(
+      (currentPromptSeed.constraints || []).join("\n"),
+    );
+    const validationError = validatePromptSettings({ role, constraints });
+    if (validationError) {
+      setPromptSeedError(validationError);
+      showToast(validationError, "error");
+      return;
+    }
+
+    setPromptSeedSaving(true);
+    setPromptSeedError("");
+    setPromptSeedNotice("");
+    try {
+      const response = await client.put("/admin/prompt-settings", {
+        ...(baselinePromptSeed || {}),
+        ...currentPromptSeed,
+        role,
+        constraints,
+      });
+      const nextPromptSeed = response.data?.data || response.data;
+      setPromptSeed(nextPromptSeed);
+      setBaselinePromptSeed(nextPromptSeed);
+      setPromptSeedNotice("Prompt settings seed saved.");
+      showToast("Prompt settings seed saved.", "success");
+    } catch (err) {
+      const message = err.message || String(err);
+      setPromptSeedError(message);
+      showToast(`Failed to save prompt settings seed: ${message}`, "error");
+    } finally {
+      setPromptSeedSaving(false);
     }
   };
 
@@ -442,6 +518,76 @@ function AdminConfig() {
                 disabled={loading || saving}
               />
             </label>
+          </div>
+        </section>
+
+        <section className="surface-page space-y-4 p-5">
+          <div className="space-y-1">
+            <p className="text-kicker">Prompt Settings Seed</p>
+            <p className="text-sm leading-6 text-[color:var(--on-dark-soft)]">
+              This is the default copied to every new client at signup. Changing this
+              does not affect existing clients.
+            </p>
+          </div>
+
+          {promptSeedLoading ? (
+            <p className="text-sm text-[color:var(--on-dark-soft)]">
+              Loading prompt settings seed...
+            </p>
+          ) : null}
+
+          <label className="block space-y-2">
+            <span className="text-sm text-[color:var(--on-dark-soft)]">Role</span>
+            <textarea
+              className="field w-full"
+              rows={4}
+              value={promptSeed?.role || ""}
+              onChange={(event) =>
+                setPromptSeed((current) => ({
+                  ...(current || {}),
+                  role: event.target.value,
+                }))
+              }
+              disabled={promptSeedLoading || promptSeedSaving}
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm text-[color:var(--on-dark-soft)]">
+              Constraints (one per line)
+            </span>
+            <textarea
+              className="field w-full"
+              rows={8}
+              value={(promptSeed?.constraints || []).join("\n")}
+              onChange={(event) =>
+                setPromptSeed((current) => ({
+                  ...(current || {}),
+                  constraints: event.target.value
+                    .split("\n")
+                    .map((line) => line),
+                }))
+              }
+              disabled={promptSeedLoading || promptSeedSaving}
+            />
+          </label>
+
+          {promptSeedError ? (
+            <p className="text-sm text-[color:var(--error)]">{promptSeedError}</p>
+          ) : null}
+          {promptSeedNotice ? (
+            <p className="text-sm text-[color:var(--success)]">{promptSeedNotice}</p>
+          ) : null}
+
+          <div className="flex justify-end px-1 pb-2">
+            <button
+              type="button"
+              onClick={handleSavePromptSeed}
+              disabled={promptSeedSaving || promptSeedLoading || !promptSeed}
+              className="button-primary"
+            >
+              {promptSeedSaving ? "Saving..." : "Save prompt seed"}
+            </button>
           </div>
         </section>
 

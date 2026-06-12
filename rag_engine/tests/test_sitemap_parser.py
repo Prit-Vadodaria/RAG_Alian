@@ -99,6 +99,14 @@ class SitemapParserTests(unittest.TestCase):
             ["https://example.com/post-1"],
         )
 
+    @patch("src.ingestion.sitemap.requests.get")
+    def test_parse_sitemap_skips_non_english_sitemap_urls(self, mock_get: Mock) -> None:
+        self.assertEqual(
+            parse_sitemap("https://www.minimalist.ae/ar/sitemap_products_1.xml?from=1&to=2", visited=set()),
+            [],
+        )
+        mock_get.assert_not_called()
+
     @patch("src.ingestion.sitemap.get_logger")
     @patch("src.ingestion.sitemap.requests.get")
     def test_parse_sitemap_handles_request_failure(self, mock_get: Mock, get_logger: Mock) -> None:

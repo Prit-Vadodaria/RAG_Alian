@@ -3,6 +3,7 @@ const authService = require("../services/auth.service");
 const { REGISTRATION_ENABLED } = require("../config/env");
 const configService = require("../services/config.service");
 const clientConfigService = require("../services/client-config.service");
+const promptSettingsService = require("../services/prompt-settings.service");
 const tokenService = require("../services/token.service");
 
 const GOOGLE_API_KEY_PATTERN = /^[A-Za-z0-9._-]{10,}$/;
@@ -95,6 +96,7 @@ const signup = async (req, res, next) => {
     let user = null;
     try {
       user = authService.createUser({ email, name, password, role: "client" });
+      promptSettingsService.initClientPromptSettings(user.client_id);
       clientConfigService.setClientConfig(
         user.client_id,
         {
@@ -112,6 +114,11 @@ const signup = async (req, res, next) => {
       tokenService.applyClientDailyLimit(user.client_id, normalizedDailyTokenLimit);
     } catch (error) {
       if (user) {
+        try {
+          promptSettingsService.deleteClientPromptSettings(user.client_id);
+        } catch {
+          // best-effort rollback
+        }
         try {
           authService.deleteUser(user.id);
         } catch {

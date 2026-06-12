@@ -63,6 +63,15 @@ def _fetch_sitemap_xml(sitemap_url: str, timeout: int) -> bytes | None:
     return response.content
 
 
+def _is_allowed_url(url: str, language: str | None) -> bool:
+    if not language:
+        return True
+    normalized_language = language.strip().lower()
+    if normalized_language == "en":
+        return is_english_url(url)
+    return bool(filter_urls_by_language([url], normalized_language))
+
+
 def _loc_texts(soup: BeautifulSoup, parent_tag: str) -> list[str]:
     locations: list[str] = []
     for parent in soup.find_all(parent_tag):
@@ -77,6 +86,7 @@ def parse_sitemap(
     *,
     timeout: int = REQUEST_TIMEOUT,
     visited: set[str] | None = None,
+    language: str | None = "en",
 ) -> list[str]:
     if not is_valid_url(sitemap_url):
         logger = get_logger("sitemap_parser", LOGS_DIR / "sitemap.log")
@@ -87,6 +97,8 @@ def parse_sitemap(
     normalized_sitemap_url = sitemap_url.strip()
     if normalized_sitemap_url in active_visited:
         return []
+    if not _is_allowed_url(normalized_sitemap_url, language):
+        return []
     active_visited.add(normalized_sitemap_url)
 
     xml_content = _fetch_sitemap_xml(normalized_sitemap_url, timeout)
@@ -96,10 +108,18 @@ def parse_sitemap(
     soup = BeautifulSoup(xml_content, "xml")
     discovered_urls: list[str] = []
     for nested_sitemap_url in _loc_texts(soup, "sitemap"):
-        discovered_urls.extend(parse_sitemap(nested_sitemap_url, timeout=timeout, visited=active_visited))
+        discovered_urls.extend(
+            parse_sitemap(
+                nested_sitemap_url,
+                timeout=timeout,
+                visited=active_visited,
+                language=language,
+            )
+        )
     for page_url in _loc_texts(soup, "url"):
-        if is_valid_url(page_url):
-            discovered_urls.append(page_url.strip())
+        candidate = page_url.strip()
+        if is_valid_url(candidate) and _is_allowed_url(candidate, language):
+            discovered_urls.append(candidate)
     return _dedupe_preserving_order(discovered_urls)
 
 
@@ -119,7 +139,7 @@ def parse_and_save_sitemap(
     timeout: int = REQUEST_TIMEOUT,
     language: str | None = None,
 ) -> list[str]:
-    urls = parse_sitemap(sitemap_url, timeout=timeout, visited=set())
+    urls = parse_sitemap(sitemap_url, timeout=timeout, visited=set(), language=language or "en")
     urls = filter_english_urls(urls)
     if language:
         urls = filter_urls_by_language(urls, language)

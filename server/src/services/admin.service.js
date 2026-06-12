@@ -3,6 +3,7 @@ const authService = require("./auth.service");
 const clientConfigService = require("./client-config.service");
 const chatbotService = require("./chatbot.service");
 const contextService = require("./context.service");
+const promptSettingsService = require("./prompt-settings.service");
 const tokenService = require("./token.service");
 
 function _readJson(filePath, fallback) {
@@ -136,6 +137,7 @@ function deleteClient(clientId) {
   delete quotaState.clients?.[clientScope];
   _writeJson(tokenService.QUOTA_STATE_PATH, quotaState);
   clientConfigService.deleteClientConfig(clientScope);
+  promptSettingsService.deleteClientPromptSettings(clientScope);
 
   return authService.deleteUser(user.id);
 }

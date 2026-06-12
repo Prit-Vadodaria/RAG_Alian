@@ -6,6 +6,8 @@ const {
   updateClient,
   deleteClient,
   resetClientUsage,
+  getPromptSettings,
+  updatePromptSettings,
 } = require("../controllers/admin.controller");
 
 const router = express.Router();
@@ -16,5 +18,7 @@ router.get("/clients/:clientId", getClient);
 router.patch("/clients/:clientId", updateClient);
 router.delete("/clients/:clientId", deleteClient);
 router.post("/clients/:clientId/reset-usage", resetClientUsage);
+router.get("/prompt-settings", getPromptSettings);
+router.put("/prompt-settings", updatePromptSettings);
 
 module.exports = router;

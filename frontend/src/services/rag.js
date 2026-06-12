@@ -30,18 +30,3 @@ export const pingHealth = async () => {
   const response = await apiClient.get("/health");
   return response.data;
 };
-
-export const getPromptSettings = async () => {
-  const response = await apiClient.get("/prompt-settings");
-  return response.data;
-};
-
-export const savePromptSettings = async (settings) => {
-  const response = await apiClient.put("/prompt-settings", settings);
-  return response.data;
-};
-
-export const resetPromptSettings = async () => {
-  const response = await apiClient.post("/prompt-settings/reset");
-  return response.data;
-};

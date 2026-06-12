@@ -1,5 +1,7 @@
 const apiClient = require("./api.service");
 const clientConfigService = require("./client-config.service");
+const contextService = require("./context.service");
+const promptSettingsService = require("./prompt-settings.service");
 const tokenService = require("./token.service");
 const { BYOK_ENABLED } = require("../config/env");
 
@@ -27,10 +29,15 @@ const askRag = async (query, contextId = "", options = {}) => {
       };
     }
 
+    const contextSettings = contextService.getContextPromptSettings(contextId);
+    const clientSettings = clientId ? promptSettingsService.getClientPromptSettings(clientId) : null;
+    const resolvedPromptSettings = contextSettings || clientSettings || undefined;
+
     const response = await apiClient.post("/ask", {
       query,
       context_id: contextId,
       ...options,
+      prompt_settings: resolvedPromptSettings,
       ...(generationConfig ? { generation_config: generationConfig } : {}),
     });
 

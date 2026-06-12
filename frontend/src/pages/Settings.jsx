@@ -3,6 +3,7 @@ import { Cog } from "lucide-react";
 import SectionCard from "../components/ui/SectionCard";
 import { usePromptSettingsStore } from "../store/promptSettingsStore";
 import { useContextStore } from "../store/contextStore";
+import { validatePromptSettings } from "../utils/validatePromptSettings";
 
 function normalizeConstraints(text) {
   return text
@@ -54,14 +55,24 @@ function Settings() {
   }, [isDirty, isEditing, isLoading]);
 
   useEffect(() => {
-    setBaselineRole(settings.role || "");
-    setBaselineConstraintsText((settings.constraints || []).join("\n"));
+    setBaselineRole(settings?.role || "");
+    setBaselineConstraintsText((settings?.constraints || []).join("\n"));
   }, [settings]);
 
   const handleSave = async () => {
     if (!isEditing || !isDirty) return;
 
     const constraints = normalizeConstraints(constraintsText);
+    const validationError = validatePromptSettings({
+      role: role.trim(),
+      constraints,
+    });
+    if (validationError) {
+      setSaveError(validationError);
+      showToast(validationError, "error");
+      return;
+    }
+
     setSaveError("");
     try {
       await saveSettings({ role: role.trim(), constraints });
@@ -78,17 +89,17 @@ function Settings() {
 
   const handleReset = async () => {
     const next = await resetSettings();
-    setRole(next.role || "");
-    setConstraintsText((next.constraints || []).join("\n"));
-    setBaselineRole(next.role || "");
-    setBaselineConstraintsText((next.constraints || []).join("\n"));
+    setRole(next?.role || "");
+    setConstraintsText((next?.constraints || []).join("\n"));
+    setBaselineRole(next?.role || "");
+    setBaselineConstraintsText((next?.constraints || []).join("\n"));
     setIsEditing(false);
-    showToast("Prompt settings reset to defaults.", "success");
+    showToast("Prompt settings reset to seed.", "success");
   };
 
   const handleEdit = () => {
-    setRole(settings.role || "");
-    setConstraintsText((settings.constraints || []).join("\n"));
+    setRole(settings?.role || "");
+    setConstraintsText((settings?.constraints || []).join("\n"));
     setIsEditing(true);
   };
 
@@ -117,7 +128,7 @@ function Settings() {
         <div className="space-y-3">
           <label className="block text-sm text-[color:var(--body)]">Role</label>
           <textarea
-            value={isEditing ? role : settings.role || ""}
+            value={isEditing ? role : settings?.role || ""}
             onChange={(e) => setRole(e.target.value)}
             className="field"
             rows={3}
@@ -130,7 +141,7 @@ function Settings() {
             value={
               isEditing
                 ? constraintsText
-                : (settings.constraints || []).join("\n")
+                : (settings?.constraints || []).join("\n")
             }
             onChange={(e) => setConstraintsText(e.target.value)}
             className="field"
@@ -150,7 +161,7 @@ function Settings() {
               disabled={isLoading}
               className="button-secondary !border-[rgba(255,255,255,0.14)] !bg-transparent"
             >
-              Reset Defaults
+              Reset Seed
             </button>
             <button
               onClick={handleSave}

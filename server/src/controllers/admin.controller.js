@@ -1,5 +1,6 @@
 const { successResponse, errorResponse } = require("../utils/apiResponse");
 const adminService = require("../services/admin.service");
+const promptSettingsService = require("../services/prompt-settings.service");
 
 const getStats = async (req, res, next) => {
   try {
@@ -70,6 +71,28 @@ const resetClientUsage = async (req, res, next) => {
   }
 };
 
+const getPromptSettings = async (req, res, next) => {
+  try {
+    const settings = promptSettingsService.getSeedPromptSettings();
+    return res.json(successResponse(settings));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const updatePromptSettings = async (req, res, next) => {
+  try {
+    const changedBy = req.user?.id || req.user?.email || "admin";
+    const settings = promptSettingsService.setSeedPromptSettings(req.body || {}, {
+      changedBy,
+    });
+    return res.json(successResponse(settings));
+  } catch (error) {
+    const status = Number(error?.status || 500);
+    return res.status(status).json(errorResponse(error.message || "Unable to save prompt settings."));
+  }
+};
+
 module.exports = {
   getStats,
   listClients,
@@ -77,4 +100,6 @@ module.exports = {
   updateClient,
   deleteClient,
   resetClientUsage,
+  getPromptSettings,
+  updatePromptSettings,
 };

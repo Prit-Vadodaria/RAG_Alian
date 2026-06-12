@@ -14,7 +14,7 @@ function _getRequestClientId(req) {
 
 const chatController = async (req, res, next) => {
   try {
-    const { query, context_id, prompt_settings, chatbot_id, namespace, visitor_id, origin } = req.body;
+    const { query, context_id, chatbot_id, namespace, visitor_id, origin } = req.body;
 
     if (typeof query !== "string" || !query.trim()) {
       return res
@@ -31,7 +31,6 @@ const chatController = async (req, res, next) => {
         .json(errorResponse("context_id is required. Select a website context first."));
     }
     const response = await askRag(query.trim(), ctx, {
-      prompt_settings,
       chatbot_id,
       namespace,
       visitor_id,
