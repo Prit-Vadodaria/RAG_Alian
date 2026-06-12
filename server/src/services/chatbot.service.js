@@ -3,6 +3,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { DEFAULT_CLIENT_ID } = require("../config/env");
 const configService = require("./config.service");
+const authService = require("./auth.service");
 
 const DATA_DIR = path.resolve(__dirname, "../../data");
 const CHATBOTS_PATH = path.join(DATA_DIR, "chatbots.json");
@@ -168,6 +169,7 @@ function _normalizeChatbotRecord(chatbot) {
         ? chatbot.theme_config
         : {},
     prompt_config: _normalizePromptConfig(chatbot.prompt_config),
+    last_accessed_at: chatbot.last_accessed_at || null,
     allowed_domains: allowedDomains,
     context_ids: contextIds,
     primary_context_id: primaryContextId,
@@ -197,6 +199,16 @@ function listChatbots(clientId = null) {
 function getChatbot(chatbotId, clientId = null) {
   if (!chatbotId) return null;
   return listChatbots(clientId).find((chatbot) => chatbot.id === chatbotId) || null;
+}
+
+function _buildClientNameLookup() {
+  const lookup = new Map();
+  for (const user of authService.listUsers()) {
+    if (user && user.client_id) {
+      lookup.set(String(user.client_id).trim(), user.name || user.email || String(user.client_id).trim());
+    }
+  }
+  return lookup;
 }
 
 function listChatbotsByContext(contextId, clientId = null) {
@@ -259,6 +271,80 @@ function createChatbot(input, clientId = null) {
   state.chatbots = [...(state.chatbots || []), chatbot];
   _writeState(state);
   return chatbot;
+}
+
+function updateLastAccessed(chatbotId, clientId = null) {
+  const state = _readState();
+  const now = new Date().toISOString();
+  let updated = null;
+  state.chatbots = (state.chatbots || []).map((chatbot) => {
+    if (chatbot.id !== chatbotId) return chatbot;
+    const normalized = _normalizeChatbotRecord(chatbot);
+    if (!_assertChatbotOwnership(normalized, clientId)) return chatbot;
+    updated = _normalizeChatbotRecord({ ...chatbot, last_accessed_at: now });
+    return updated;
+  });
+  if (!updated) return null;
+  _writeState(state);
+  return now;
+}
+
+function listAllChatbotsAdmin({
+  search = "",
+  status = "",
+  sortBy = "created_at",
+  sortDir = "desc",
+  page = 1,
+  limit = 25,
+} = {}) {
+  const state = _readState();
+  const clientLookup = _buildClientNameLookup();
+  const normalizedSearch = String(search || "").trim().toLowerCase().slice(0, 200);
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  const normalizedSortBy = String(sortBy || "created_at").trim();
+  const normalizedSortDir = String(sortDir || "desc").trim().toLowerCase() === "asc" ? "asc" : "desc";
+  const safePage = Math.max(1, Number(page) || 1);
+  const safeLimit = Math.min(100, Math.max(1, Number(limit) || 25));
+
+  let items = (state.chatbots || []).map((entry) => {
+    const mapped = _normalizeChatbotRecord(entry);
+    return {
+      ...mapped,
+      client_name: clientLookup.get(String(mapped.client_id || "").trim()) || null,
+    };
+  });
+
+  if (normalizedSearch) {
+    items = items.filter((item) => {
+      const haystack = [item.id, item.name, item.client_id, item.client_name].join(" ").toLowerCase();
+      return haystack.includes(normalizedSearch);
+    });
+  }
+
+  if (normalizedStatus === "active") {
+    items = items.filter((item) => Boolean(item.is_active));
+  } else if (normalizedStatus === "disabled") {
+    items = items.filter((item) => !Boolean(item.is_active));
+  }
+
+  items.sort((left, right) => {
+    const a = left[normalizedSortBy];
+    const b = right[normalizedSortBy];
+    if (a === b) return 0;
+    if (a === null || a === undefined) return normalizedSortDir === "asc" ? -1 : 1;
+    if (b === null || b === undefined) return normalizedSortDir === "asc" ? 1 : -1;
+    const aValue = String(a).toLowerCase();
+    const bValue = String(b).toLowerCase();
+    if (aValue < bValue) return normalizedSortDir === "asc" ? -1 : 1;
+    if (aValue > bValue) return normalizedSortDir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const total = items.length;
+  const start = (safePage - 1) * safeLimit;
+  items = items.slice(start, start + safeLimit);
+
+  return { items, total, page: safePage, limit: safeLimit };
 }
 
 function _assertChatbotOwnership(chatbot, clientId) {
@@ -396,6 +482,8 @@ module.exports = {
   deleteChatbotsByContext,
   createChatbot,
   updateChatbot,
+  updateLastAccessed,
+  listAllChatbotsAdmin,
   disableChatbot,
   enableChatbot,
   deleteChatbot,

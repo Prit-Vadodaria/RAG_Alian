@@ -80,6 +80,40 @@ const getPromptSettings = async (req, res, next) => {
   }
 };
 
+const listAllContexts = async (req, res, next) => {
+  try {
+    const { search, status, sortBy, sortDir, page, limit } = req.query;
+    const result = adminService.listAllContextsAdmin({
+      search: String(search || ""),
+      status: String(status || ""),
+      sortBy: String(sortBy || "created_at"),
+      sortDir: String(sortDir || "desc"),
+      page: Math.max(1, parseInt(page, 10) || 1),
+      limit: Math.min(100, Math.max(1, parseInt(limit, 10) || 25)),
+    });
+    return res.json(successResponse(result));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const listAllChatbots = async (req, res, next) => {
+  try {
+    const { search, status, sortBy, sortDir, page, limit } = req.query;
+    const result = adminService.listAllChatbotsAdmin({
+      search: String(search || ""),
+      status: String(status || ""),
+      sortBy: String(sortBy || "created_at"),
+      sortDir: String(sortDir || "desc"),
+      page: Math.max(1, parseInt(page, 10) || 1),
+      limit: Math.min(100, Math.max(1, parseInt(limit, 10) || 25)),
+    });
+    return res.json(successResponse(result));
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const updatePromptSettings = async (req, res, next) => {
   try {
     const changedBy = req.user?.id || req.user?.email || "admin";
@@ -102,4 +136,6 @@ module.exports = {
   resetClientUsage,
   getPromptSettings,
   updatePromptSettings,
+  listAllContexts,
+  listAllChatbots,
 };

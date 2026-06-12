@@ -8,6 +8,8 @@ const {
   resetClientUsage,
   getPromptSettings,
   updatePromptSettings,
+  listAllContexts,
+  listAllChatbots,
 } = require("../controllers/admin.controller");
 
 const router = express.Router();
@@ -20,5 +22,7 @@ router.delete("/clients/:clientId", deleteClient);
 router.post("/clients/:clientId/reset-usage", resetClientUsage);
 router.get("/prompt-settings", getPromptSettings);
 router.put("/prompt-settings", updatePromptSettings);
+router.get("/contexts", listAllContexts);
+router.get("/chatbots", listAllChatbots);
 
 module.exports = router;

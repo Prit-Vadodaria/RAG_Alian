@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const { spawn, spawnSync } = require("child_process");
 const { deleteChatbotsByContext } = require("./chatbot.service");
 const { DEFAULT_CLIENT_ID } = require("../config/env");
+const authService = require("./auth.service");
 const configService = require("./config.service");
 const promptSettingsService = require("./prompt-settings.service");
 
@@ -163,10 +164,13 @@ function _mapEntry(entry) {
     name: entry.name || entry.id,
     seed_url: entry.seed_url || "",
     client_id: normalizedClientId,
+    client_name: entry.client_name || null,
     status: _normalizeStatus(entry.status),
     path: entry.path || "",
     isDefault: Boolean(entry.is_default),
     isDeletable: entry.is_deletable !== false,
+    created_at: entry.created_at || null,
+    last_accessed_at: entry.last_accessed_at || null,
     chunking: _normalizeChunkingConfig(entry.chunking, DEFAULT_CHUNKING),
     total_urls: Number(entry.total_urls || 0),
     pending_urls: Number(entry.pending_urls || 0),
@@ -260,6 +264,16 @@ function listContexts(clientId = null) {
 
 function getContext(contextId, clientId = null) {
   return listContexts(clientId).find((context) => context.id === contextId) || null;
+}
+
+function _buildClientNameLookup() {
+  const lookup = new Map();
+  for (const user of authService.listUsers()) {
+    if (user && user.client_id) {
+      lookup.set(String(user.client_id).trim(), user.name || user.email || String(user.client_id).trim());
+    }
+  }
+  return lookup;
 }
 
 function _findDuplicateSeedUrl(seedUrl, clientId = null) {
@@ -431,6 +445,94 @@ function createContext(url, options = {}, clientId = null) {
   }
 
   return { contextId: id, status: DISCOVERING };
+}
+
+function updateLastAccessed(contextId, clientId = null) {
+  const now = new Date().toISOString();
+  const registry = _readRegistry();
+  let updated = false;
+  registry.contexts = (registry.contexts || []).map((entry) => {
+    if (entry.id !== contextId) return entry;
+    if (!_matchesClientScope(_mapEntry(entry), clientId)) return entry;
+    updated = true;
+    return { ...entry, last_accessed_at: now };
+  });
+  if (!updated) return null;
+  _writeRegistry(registry);
+
+  try {
+    const metaPath = _metadataPath(contextId);
+    const current = _readJson(metaPath, {});
+    _updateMetadata(contextId, { ...current, last_accessed_at: now });
+  } catch {
+    // best-effort
+  }
+
+  return now;
+}
+
+function listAllContextsAdmin({
+  search = "",
+  status = "",
+  sortBy = "created_at",
+  sortDir = "desc",
+  page = 1,
+  limit = 25,
+} = {}) {
+  const registry = _readRegistry();
+  const clientLookup = _buildClientNameLookup();
+  const normalizedSearch = String(search || "").trim().toLowerCase().slice(0, 200);
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  const normalizedSortBy = String(sortBy || "created_at").trim();
+  const normalizedSortDir = String(sortDir || "desc").trim().toLowerCase() === "asc" ? "asc" : "desc";
+  const safePage = Math.max(1, Number(page) || 1);
+  const safeLimit = Math.min(100, Math.max(1, Number(limit) || 25));
+
+  let items = (registry.contexts || []).map((entry) => {
+    const mapped = _mapEntry(entry);
+    return {
+      ...mapped,
+      client_name: mapped.client_name || clientLookup.get(String(mapped.client_id || "").trim()) || null,
+    };
+  });
+
+  if (normalizedSearch) {
+    items = items.filter((item) => {
+      const haystack = [
+        item.id,
+        item.name,
+        item.client_id,
+        item.client_name,
+        item.seed_url,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedSearch);
+    });
+  }
+
+  if (normalizedStatus) {
+    items = items.filter((item) => String(item.status || "").toLowerCase() === normalizedStatus);
+  }
+
+  items.sort((left, right) => {
+    const a = left[normalizedSortBy];
+    const b = right[normalizedSortBy];
+    if (a === b) return 0;
+    if (a === null || a === undefined) return normalizedSortDir === "asc" ? -1 : 1;
+    if (b === null || b === undefined) return normalizedSortDir === "asc" ? 1 : -1;
+    const aValue = String(a).toLowerCase();
+    const bValue = String(b).toLowerCase();
+    if (aValue < bValue) return normalizedSortDir === "asc" ? -1 : 1;
+    if (aValue > bValue) return normalizedSortDir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const total = items.length;
+  const start = (safePage - 1) * safeLimit;
+  items = items.slice(start, start + safeLimit);
+
+  return { items, total, page: safePage, limit: safeLimit };
 }
 
 function getContextDefaults() {
@@ -680,6 +782,8 @@ module.exports = {
   getContextDefaults,
   pauseContext,
   resumeContext,
+  updateLastAccessed,
+  listAllContextsAdmin,
   getContextPromptSettings,
   setContextPromptSettings,
   deleteContextPromptSettings,

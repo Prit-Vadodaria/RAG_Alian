@@ -16,6 +16,7 @@
   --accent-dim:       #a8e040;
   --accent-glow:      rgba(200, 255, 87, 0.18);
   --accent-border:    rgba(200, 255, 87, 0.28);
+  --primary-contrast: #000000;
 
   /* Text */
   --ink:              #f5f5f5;
@@ -201,7 +202,7 @@ select:focus-visible,
 .button-primary {
   border-radius: 0.5rem;
   background: var(--accent);
-  color: #000;
+  color: var(--primary-contrast, #000);
   min-height: 40px;
   padding: 0.65rem 1.1rem;
   font-size: 0.875rem;
@@ -213,6 +214,18 @@ select:focus-visible,
   background: var(--accent-dim);
   transform: translateY(-1px);
   box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.button-primary-soft {
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  color: var(--primary-contrast, var(--on-dark));
+  border-color: color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+.button-primary-soft:hover {
+  background: color-mix(in srgb, var(--primary) 24%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 34%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--primary) 14%, transparent);
 }
 
 .button-secondary {
@@ -421,6 +434,64 @@ select:focus-visible,
   border-color: rgba(248,113,113,0.3);
   background: rgba(248,113,113,0.1);
   color: #fca5a5;
+}
+
+.admin-status-badge {
+  text-transform: capitalize;
+}
+
+.admin-status-badge[data-status="discovering"] {
+  border-color: rgba(250, 204, 21, 0.28);
+  background: rgba(250, 204, 21, 0.12);
+  color: #fde047;
+}
+
+.admin-status-badge[data-status="processing_batch"] {
+  border-color: rgba(200, 255, 87, 0.28);
+  background: rgba(200, 255, 87, 0.12);
+  color: var(--accent);
+}
+
+.admin-status-badge[data-status="partially_ready"] {
+  border-color: rgba(74, 222, 128, 0.28);
+  background: rgba(74, 222, 128, 0.12);
+  color: #86efac;
+}
+
+.admin-status-badge[data-status="ready"] {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.18);
+  color: #86efac;
+}
+
+.admin-status-badge[data-status="paused"] {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(102, 102, 102, 0.14);
+  color: var(--on-dark-soft);
+}
+
+.admin-status-badge[data-status="failed"] {
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fca5a5;
+}
+
+.admin-status-badge[data-status="active"] {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.18);
+  color: #86efac;
+}
+
+.admin-status-badge[data-status="disabled"] {
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fca5a5;
+}
+
+.admin-status-badge[data-status="deleted"] {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(102, 102, 102, 0.14);
+  color: var(--on-dark-soft);
 }
 
 /* ── Chat ──────────────────────────────────────────────────── */

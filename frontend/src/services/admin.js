@@ -25,6 +25,20 @@ export const deleteClient = async (clientId) =>
 export const resetClientUsage = async (clientId) =>
   unwrap(await client.post(`/admin/clients/${encodeURIComponent(clientId)}/reset-usage`));
 
+export const fetchAdminContexts = async (params = {}) =>
+  unwrap(
+    await client.get("/admin/contexts", {
+      params,
+    }),
+  );
+
+export const fetchAdminChatbots = async (params = {}) =>
+  unwrap(
+    await client.get("/admin/chatbots", {
+      params,
+    }),
+  );
+
 export default {
   getStats,
   listClients,
@@ -32,4 +46,6 @@ export default {
   updateClient,
   deleteClient,
   resetClientUsage,
+  fetchAdminContexts,
+  fetchAdminChatbots,
 };

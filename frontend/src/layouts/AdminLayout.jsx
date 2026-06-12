@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Settings, LogOut, Sparkles, ChevronUp, ChevronDown } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  Settings,
+  LogOut,
+  Sparkles,
+  ChevronUp,
+  ChevronDown,
+  Globe,
+  Bot,
+} from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
 function AdminLayout() {
@@ -11,9 +21,17 @@ function AdminLayout() {
   const [configOpen, setConfigOpen] = useState(location.pathname.startsWith("/admin/config"));
 
   useEffect(() => {
-    if (location.pathname.startsWith("/admin/config")) {
-      setConfigOpen(true);
-    }
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      if (location.pathname.startsWith("/admin/config")) {
+        setConfigOpen(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [location.pathname]);
 
   const handleLogout = async () => {
@@ -22,10 +40,10 @@ function AdminLayout() {
   };
 
   const subNavClass = ({ isActive }) =>
-    `block rounded-xl px-3 py-2 text-xs transition ${
+    `block rounded-2xl px-4 py-3 text-sm font-medium transition ${
       isActive
-        ? "bg-[color:var(--surface-dark-elevated)] text-[color:var(--on-dark)]"
-        : "text-[color:var(--on-dark-soft)] hover:text-[color:var(--on-dark)]"
+        ? "bg-[color:var(--surface-dark-elevated)] text-[color:var(--on-dark)] shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
+        : "text-[color:var(--on-dark-soft)] hover:bg-[color:var(--surface-dark-elevated)] hover:text-[color:var(--on-dark)]"
     }`;
 
   return (
@@ -51,6 +69,14 @@ function AdminLayout() {
               <Users className="h-4 w-4" />
               Clients
             </NavLink>
+            <NavLink to="/admin/contexts" className={({ isActive }) => `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm ${isActive ? "bg-[color:var(--surface-dark-elevated)] text-[color:var(--on-dark)]" : "text-[color:var(--on-dark-soft)]"}`}>
+              <Globe className="h-4 w-4" />
+              Web Contexts
+            </NavLink>
+            <NavLink to="/admin/chatbots" className={({ isActive }) => `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm ${isActive ? "bg-[color:var(--surface-dark-elevated)] text-[color:var(--on-dark)]" : "text-[color:var(--on-dark-soft)]"}`}>
+              <Bot className="h-4 w-4" />
+              Chatbots
+            </NavLink>
             <button
               type="button"
               onClick={() => setConfigOpen((value) => !value)}
@@ -71,7 +97,7 @@ function AdminLayout() {
               )}
             </button>
             {configOpen ? (
-              <div className="ml-4 mt-1 flex flex-col gap-1 border-l border-[var(--hairline)] pl-3">
+              <div className="ml-4 mt-2 flex flex-col gap-2 border-l border-[var(--hairline)] pl-4">
                 <NavLink to="/admin/config/registration" className={subNavClass}>
                   Registration
                 </NavLink>

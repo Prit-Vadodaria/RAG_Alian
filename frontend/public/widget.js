@@ -33,6 +33,27 @@
       .replace(/'/g, "&#39;");
   }
 
+  function hexToRgb(hex) {
+    const value = String(hex || "").trim().replace(/^#/, "");
+    if (!/^[0-9a-fA-F]{6}$/.test(value)) {
+      return null;
+    }
+    const numeric = Number.parseInt(value, 16);
+    return {
+      r: (numeric >> 16) & 255,
+      g: (numeric >> 8) & 255,
+      b: numeric & 255,
+    };
+  }
+
+  function getContrastColor(hex) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return "#ffffff";
+    const luminance =
+      (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+    return luminance >= 0.62 ? "#000000" : "#ffffff";
+  }
+
   function renderMarkdown(value) {
     const text = String(value || "").replace(/\r\n/g, "\n").trim();
     if (!text) return "";
@@ -290,6 +311,7 @@
   function getThemePalette() {
     const themeConfig = state.config?.theme || {};
     const primary = themeConfig.primary || "#0099ff";
+    const primaryContrast = getContrastColor(primary);
     if (state.theme === "light") {
       return {
         canvas: "#ffffff",
@@ -304,7 +326,9 @@
         shadow: "rgba(0, 0, 0, 0.12)",
         shadowStrong: "rgba(0, 0, 0, 0.18)",
         userSolid: primary,
-        userText: "#ffffff",
+        userText: primaryContrast,
+        primaryContrast,
+        primaryText: "#111111",
         mutedBg: "rgba(0, 0, 0, 0.03)",
         overlay: "rgba(17, 17, 17, 0.08)",
       };
@@ -322,7 +346,9 @@
       shadow: "rgba(0, 0, 0, 0.42)",
       shadowStrong: "rgba(0, 0, 0, 0.56)",
       userSolid: primary,
-      userText: "#ffffff",
+      userText: primaryContrast,
+      primaryContrast,
+      primaryText: "#ffffff",
       mutedBg: "rgba(255, 255, 255, 0.04)",
       overlay: "rgba(0, 0, 0, 0.38)",
     };
@@ -629,6 +655,8 @@
         --text: ${palette.text};
         --text-muted: ${palette.textMuted};
         --primary: ${palette.primary};
+        --primary-contrast: ${palette.primaryContrast};
+        --primary-text: ${palette.primaryText};
         --error: ${palette.error};
         --border: ${palette.border};
         --border-soft: ${palette.borderSoft};
@@ -838,9 +866,13 @@
         border: 1px solid var(--border);
       }
       .new-chat {
-        background: var(--primary);
-        border-color: var(--primary);
-        color: #ffffff;
+        background: color-mix(in srgb, var(--primary) 16%, transparent);
+        border-color: color-mix(in srgb, var(--primary) 24%, transparent);
+        color: var(--primary-text);
+      }
+      .new-chat:hover {
+        background: color-mix(in srgb, var(--primary) 24%, transparent);
+        border-color: color-mix(in srgb, var(--primary) 34%, transparent);
       }
       .history-toggle:hover,
       .new-chat:hover,
@@ -1204,7 +1236,7 @@
         padding: 0 14px;
         border-radius: 14px;
         background: var(--primary);
-        color: #ffffff;
+        color: var(--primary-contrast);
         font-weight: 700;
         cursor: pointer;
         box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 18%, transparent);

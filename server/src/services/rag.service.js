@@ -1,5 +1,6 @@
 const apiClient = require("./api.service");
 const clientConfigService = require("./client-config.service");
+const chatbotService = require("./chatbot.service");
 const contextService = require("./context.service");
 const promptSettingsService = require("./prompt-settings.service");
 const tokenService = require("./token.service");
@@ -68,6 +69,16 @@ const askRag = async (query, contextId = "", options = {}) => {
         });
       } catch (err) {
         console.error("[token] recordTokenEvent failed:", err.message);
+      }
+      try {
+        if (contextId) {
+          contextService.updateLastAccessed(contextId, clientId || null);
+        }
+        if (options?.chatbot_id) {
+          chatbotService.updateLastAccessed(options.chatbot_id, clientId || null);
+        }
+      } catch (err) {
+        console.error("[access] updateLastAccessed failed:", err.message);
       }
     });
 

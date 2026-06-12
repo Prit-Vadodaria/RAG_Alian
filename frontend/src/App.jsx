@@ -17,6 +17,8 @@ import AiConfig from "./pages/AiConfig";
 import Contexts from "./pages/Contexts";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminClients from "./pages/admin/AdminClients";
+import AdminContexts from "./pages/admin/AdminContexts";
+import AdminChatbots from "./pages/admin/AdminChatbots";
 import AdminClientDetail from "./pages/admin/AdminClientDetail";
 import RegistrationConfig from "./pages/admin/config/RegistrationConfig";
 import EmbeddingConfig from "./pages/admin/config/EmbeddingConfig";
@@ -64,6 +66,8 @@ function App() {
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/clients" element={<AdminClients />} />
             <Route path="/admin/clients/:id" element={<AdminClientDetail />} />
+            <Route path="/admin/contexts" element={<AdminContexts />} />
+            <Route path="/admin/chatbots" element={<AdminChatbots />} />
             <Route path="/admin/config" element={<Navigate to="/admin/config/registration" replace />} />
             <Route path="/admin/config/registration" element={<RegistrationConfig />} />
             <Route path="/admin/config/embedding" element={<EmbeddingConfig />} />

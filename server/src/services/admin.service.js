@@ -166,6 +166,14 @@ function listUnconfiguredClients() {
   return listClients().filter((client) => !client.hasGenerationConfig);
 }
 
+function listAllContextsAdmin(opts) {
+  return contextService.listAllContextsAdmin(opts);
+}
+
+function listAllChatbotsAdmin(opts) {
+  return chatbotService.listAllChatbotsAdmin(opts);
+}
+
 module.exports = {
   getStats,
   listClients,
@@ -174,4 +182,6 @@ module.exports = {
   deleteClient,
   resetClientUsage,
   listUnconfiguredClients,
+  listAllContextsAdmin,
+  listAllChatbotsAdmin,
 };
