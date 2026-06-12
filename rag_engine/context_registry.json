@@ -27,6 +27,33 @@
       "ingestion_pid": 12312,
       "current_url": "",
       "embedding_buffer_size": 0
+    },
+    {
+      "id": "hansalpatel-tech_b23cd8e2",
+      "name": "hansalpatel.tech",
+      "seed_url": "https://hansalpatel.tech/",
+      "client_id": "client_99ec654f",
+      "status": "ready",
+      "path": "websites/hansalpatel-tech_b23cd8e2",
+      "is_default": false,
+      "is_deletable": true,
+      "chunking": {
+        "maxChunkTokens": 100,
+        "minChunkTokens": 20,
+        "chunkOverlapTokens": 30
+      },
+      "total_urls": 1,
+      "pending_urls": 0,
+      "processed_urls": 1,
+      "indexed_urls": 1,
+      "failed_urls": 0,
+      "current_batch": 0,
+      "total_batches": 0,
+      "last_completed_batch": 0,
+      "stop_reason": "",
+      "ingestion_pid": 17732,
+      "current_url": "",
+      "embedding_buffer_size": 0
     }
   ]
 }

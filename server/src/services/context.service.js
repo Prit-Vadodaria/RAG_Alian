@@ -262,9 +262,9 @@ function getContext(contextId, clientId = null) {
   return listContexts(clientId).find((context) => context.id === contextId) || null;
 }
 
-function _findDuplicateSeedUrl(seedUrl) {
+function _findDuplicateSeedUrl(seedUrl, clientId = null) {
   const normalized = _normalizeUrl(seedUrl);
-  return listContexts(null).find((ctx) => ctx.seed_url && _normalizeUrl(ctx.seed_url) === normalized);
+  return listContexts(clientId).find((ctx) => ctx.seed_url && _normalizeUrl(ctx.seed_url) === normalized);
 }
 
 function _isLocalOrPrivateHostname(hostname) {
@@ -354,9 +354,9 @@ function createContext(url, options = {}, clientId = null) {
     throw error;
   }
 
-  const duplicate = _findDuplicateSeedUrl(url);
+  const duplicate = _findDuplicateSeedUrl(url, normalizedClientId);
   if (duplicate) {
-    const error = new Error(`URL already registered as context '${duplicate.id}' by another workspace`);
+    const error = new Error(`URL already registered as context '${duplicate.id}' in your workspace`);
     error.status = 409;
     throw error;
   }
